@@ -1,1 +1,1 @@
-# jogo-ping-pong
+# ideia-jogo
