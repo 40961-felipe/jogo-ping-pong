@@ -19,5 +19,5 @@ document.addEventListener('DOMContentLoaded', () => {
     window.uiManager.init();
   }
 
-  console.log('🏓 PING PONG — 15 CHALLENGE inicializado com sucesso!');
+  console.log('🏓 TABLE TENNIS — 15 CHALLENGE inicializado com sucesso!');
 });

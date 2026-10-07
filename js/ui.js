@@ -235,7 +235,8 @@ class UIManager {
     }
 
     if (!this.gameInstance) {
-      this.gameInstance = new PingPongGame('pingPongCanvas');
+      const GameClass = window.TableTennisGame || window.PingPongGame;
+      this.gameInstance = new GameClass('pingPongCanvas');
 
       this.gameInstance.onScoreUpdate = (state) => this.updateInGameScoreboard(state);
       this.gameInstance.onSkillUpdate = (skills) => this.updateInGameSkillsUI(skills);
@@ -752,6 +753,45 @@ class UIManager {
     // User Details Close
     const detailsClose = document.getElementById('modalDetailsClose');
     if (detailsClose) detailsClose.onclick = () => this.closeModal('modalUserDetails');
+
+    // Add Coins Modal Setup
+    const btnOpenAddCoins = document.getElementById('btnOpenAddCoinsModal');
+    if (btnOpenAddCoins) {
+      btnOpenAddCoins.addEventListener('click', () => {
+        this.openAddCoinsModal();
+      });
+    }
+
+    const addCoinsForm = document.getElementById('formAddCoins');
+    if (addCoinsForm) {
+      addCoinsForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        this.handleAddCoinsSubmit();
+      });
+    }
+
+    const addCoinsClose = document.getElementById('modalAddCoinsClose');
+    const addCoinsCancel = document.getElementById('btnCancelAddCoins');
+    if (addCoinsClose) addCoinsClose.onclick = () => this.closeModal('modalAddCoins');
+    if (addCoinsCancel) addCoinsCancel.onclick = () => this.closeModal('modalAddCoins');
+
+    // Quick coin pills
+    document.querySelectorAll('.btn-coin-pill').forEach((pill) => {
+      pill.addEventListener('click', () => {
+        const amountInput = document.getElementById('addCoinsAmount');
+        if (amountInput) {
+          amountInput.value = pill.dataset.amount;
+        }
+      });
+    });
+
+    // When changing target user in select, update balance label
+    const targetSelect = document.getElementById('addCoinsTargetUser');
+    if (targetSelect) {
+      targetSelect.addEventListener('change', () => {
+        this.updateTargetUserBalanceDisplay(targetSelect.value);
+      });
+    }
   }
 
   renderAdminPage() {
@@ -853,6 +893,7 @@ class UIManager {
         <td>${new Date(u.created_at).toLocaleDateString()}</td>
         <td class="col-actions">
           <button class="btn-adm-action btn-adm-view" data-id="${u.id}">VER</button>
+          <button class="btn-adm-action btn-adm-coins" data-id="${u.id}" title="Adicionar Moedas">🪙 MOEDAS</button>
           ${
             isSelf
               ? ''
@@ -868,6 +909,9 @@ class UIManager {
     // Attach actions
     tbody.querySelectorAll('.btn-adm-view').forEach((b) => {
       b.onclick = (e) => this.openUserDetailsModal(e.currentTarget.dataset.id);
+    });
+    tbody.querySelectorAll('.btn-adm-coins').forEach((b) => {
+      b.onclick = (e) => this.openAddCoinsModal(e.currentTarget.dataset.id);
     });
     tbody.querySelectorAll('.btn-adm-ban').forEach((b) => {
       b.onclick = (e) => this.openBanModal(e.currentTarget.dataset.id);
@@ -1163,6 +1207,76 @@ class UIManager {
     this.openModal('modalUserDetails');
   }
 
+  // --- ADD COINS MODAL LOGIC ---
+  openAddCoinsModal(targetUserId = null) {
+    const users = window.storageEngine.getUsers();
+    const select = document.getElementById('addCoinsTargetUser');
+    if (!select) return;
+
+    select.innerHTML = '';
+    users.forEach((u) => {
+      const opt = document.createElement('option');
+      opt.value = u.id;
+      opt.textContent = `${u.name} (@${u.username}) — Saldo: 🪙 ${(u.coins || 0).toLocaleString('pt-BR')}`;
+      if (targetUserId && u.id === targetUserId) {
+        opt.selected = true;
+      }
+      select.appendChild(opt);
+    });
+
+    const currentSelectedId = select.value;
+    this.updateTargetUserBalanceDisplay(currentSelectedId);
+
+    const amountInput = document.getElementById('addCoinsAmount');
+    if (amountInput) amountInput.value = '500';
+
+    const reasonInput = document.getElementById('addCoinsReason');
+    if (reasonInput) reasonInput.value = 'Bônus Administrativo';
+
+    this.openModal('modalAddCoins');
+  }
+
+  updateTargetUserBalanceDisplay(userId) {
+    const user = window.storageEngine.getUsers().find((u) => u.id === userId);
+    const balanceEl = document.getElementById('addCoinsCurrentBalance');
+    if (balanceEl && user) {
+      balanceEl.textContent = `🪙 ${(user.coins || 0).toLocaleString('pt-BR')}`;
+    }
+  }
+
+  handleAddCoinsSubmit() {
+    const adminUser = window.storageEngine.getCurrentUser();
+    const targetUserId = document.getElementById('addCoinsTargetUser').value;
+    const amount = parseInt(document.getElementById('addCoinsAmount').value, 10);
+    const reason = document.getElementById('addCoinsReason').value.trim();
+
+    if (!amount || isNaN(amount) || amount <= 0) {
+      window.shopManager?.showToast('Informe uma quantidade de moedas válida e maior que zero.', 'error');
+      return;
+    }
+
+    try {
+      const result = window.storageEngine.addCoinsToUser({
+        adminUserId: adminUser.id,
+        targetUserId,
+        amount,
+        reason: reason || 'Concessão de moedas administrativa'
+      });
+
+      this.closeModal('modalAddCoins');
+      if (window.soundEngine) window.soundEngine.playCoin();
+      window.shopManager?.showToast(`🪙 ${amount.toLocaleString('pt-BR')} moedas concedidas com sucesso para ${result.targetUser.name}!`, 'success');
+
+      this.updateUserHeader();
+      this.renderAdminUsersTable();
+      this.renderAdminCoinsTable();
+      this.renderAdminLogsTable();
+      this.renderAdminDashboardMetrics();
+    } catch (err) {
+      window.shopManager?.showToast(err.message, 'error');
+    }
+  }
+
   openModal(modalId) {
     const m = document.getElementById(modalId);
     if (m) m.classList.add('active');
@@ -1175,6 +1289,123 @@ class UIManager {
 
   // --- AUTH FORMS ---
   setupAuthForms() {
+    // 1. Profile Picture Selection in Registration
+    const avatarFileInput = document.getElementById('regAvatarFileInput');
+    const avatarPreview = document.getElementById('regAvatarPreview');
+    const avatarFinalUrl = document.getElementById('regAvatarFinalUrl');
+    const avatarUrlInput = document.getElementById('regAvatarUrlInput');
+
+    if (avatarFileInput) {
+      avatarFileInput.addEventListener('change', (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (file) {
+          if (!file.type.startsWith('image/')) {
+            window.shopManager?.showToast('Por favor, selecione um arquivo de imagem (PNG, JPG, WebP, etc).', 'error');
+            return;
+          }
+          if (file.size > 2.5 * 1024 * 1024) {
+            window.shopManager?.showToast('A imagem selecionada deve ter no máximo 2.5MB.', 'error');
+            return;
+          }
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            const dataUrl = event.target.result;
+            if (avatarPreview) avatarPreview.src = dataUrl;
+            if (avatarFinalUrl) avatarFinalUrl.value = dataUrl;
+            document.querySelectorAll('.avatar-preset-btn').forEach((b) => b.classList.remove('active'));
+            window.shopManager?.showToast('Foto de perfil carregada com sucesso!', 'success');
+          };
+          reader.readAsDataURL(file);
+        }
+      });
+    }
+
+    document.querySelectorAll('.avatar-preset-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const url = btn.dataset.url;
+        if (avatarPreview) avatarPreview.src = url;
+        if (avatarFinalUrl) avatarFinalUrl.value = url;
+        if (avatarUrlInput) avatarUrlInput.value = '';
+        document.querySelectorAll('.avatar-preset-btn').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+      });
+    });
+
+    if (avatarUrlInput) {
+      avatarUrlInput.addEventListener('input', (e) => {
+        const url = e.target.value.trim();
+        if (url && (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:image/'))) {
+          if (avatarPreview) avatarPreview.src = url;
+          if (avatarFinalUrl) avatarFinalUrl.value = url;
+          document.querySelectorAll('.avatar-preset-btn').forEach((b) => b.classList.remove('active'));
+        }
+      });
+    }
+
+    // 2. Google Authentication Modal Setup
+    const openGoogleModal = () => {
+      this.openModal('modalGoogleAuth');
+    };
+
+    const btnGoogleLogin = document.getElementById('btnGoogleLogin');
+    if (btnGoogleLogin) {
+      btnGoogleLogin.addEventListener('click', openGoogleModal);
+    }
+
+    const btnGoogleRegister = document.getElementById('btnGoogleRegister');
+    if (btnGoogleRegister) {
+      btnGoogleRegister.addEventListener('click', openGoogleModal);
+    }
+
+    const modalGoogleClose = document.getElementById('modalGoogleClose');
+    if (modalGoogleClose) {
+      modalGoogleClose.onclick = () => this.closeModal('modalGoogleAuth');
+    }
+
+    // Preset Google account clicks
+    document.querySelectorAll('.google-account-item').forEach((item) => {
+      item.addEventListener('click', () => {
+        const name = item.dataset.name;
+        const email = item.dataset.email;
+        const avatar = item.dataset.avatar;
+        try {
+          const user = window.storageEngine.loginWithGoogle(name, email, avatar);
+          this.closeModal('modalGoogleAuth');
+          this.updateUserHeader();
+          window.location.hash = 'inicio';
+          if (window.soundEngine) window.soundEngine.playVictory();
+          window.shopManager?.showToast(`Bem-vindo(a), ${user.name}! [Role: ${user.role}]`, 'success');
+        } catch (err) {
+          window.shopManager?.showToast(err.message, 'error');
+        }
+      });
+    });
+
+    // Custom Google account submission
+    const btnConfirmCustomGoogle = document.getElementById('btnConfirmCustomGoogle');
+    if (btnConfirmCustomGoogle) {
+      btnConfirmCustomGoogle.addEventListener('click', () => {
+        const name = (document.getElementById('gCustomName')?.value || document.getElementById('googleCustomName')?.value || 'Atleta Google').trim();
+        const email = (document.getElementById('gCustomEmail')?.value || document.getElementById('googleCustomEmail')?.value || 'atleta@google.com').trim();
+        if (!email.includes('@')) {
+          window.shopManager?.showToast('Por favor, informe um endereço de e-mail válido.', 'error');
+          return;
+        }
+        const avatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(name)}`;
+        try {
+          const user = window.storageEngine.loginWithGoogle(name, email, avatar);
+          this.closeModal('modalGoogleAuth');
+          this.updateUserHeader();
+          window.location.hash = 'inicio';
+          if (window.soundEngine) window.soundEngine.playVictory();
+          window.shopManager?.showToast(`Bem-vindo(a), ${user.name}! [Role: ${user.role}]`, 'success');
+        } catch (err) {
+          window.shopManager?.showToast(err.message, 'error');
+        }
+      });
+    }
+
+    // 3. Native Login Form
     const loginForm = document.getElementById('formLogin');
     if (loginForm) {
       loginForm.addEventListener('submit', (e) => {
@@ -1184,29 +1415,19 @@ class UIManager {
         const errorEl = document.getElementById('loginError');
 
         try {
-          window.storageEngine.loginUser(email, pass);
+          const user = window.storageEngine.loginUser(email, pass);
           if (errorEl) errorEl.textContent = '';
           this.updateUserHeader();
           window.location.hash = 'inicio';
+          if (window.soundEngine) window.soundEngine.playClick();
+          window.shopManager?.showToast(`Autenticado com sucesso! Bem-vindo, ${user.name}.`, 'success');
         } catch (err) {
           if (errorEl) errorEl.textContent = err.message;
         }
       });
     }
 
-    const btnGoogleLogin = document.getElementById('btnGoogleLogin');
-    if (btnGoogleLogin) {
-      btnGoogleLogin.addEventListener('click', () => {
-        try {
-          window.storageEngine.loginWithGoogle('Jogador Google', 'google.challenger@gmail.com');
-          this.updateUserHeader();
-          window.location.hash = 'inicio';
-        } catch (err) {
-          window.shopManager?.showToast(err.message, 'error');
-        }
-      });
-    }
-
+    // 4. Native Register Form
     const registerForm = document.getElementById('formRegister');
     if (registerForm) {
       registerForm.addEventListener('submit', (e) => {
@@ -1216,24 +1437,34 @@ class UIManager {
         const email = document.getElementById('regEmail').value.trim();
         const pass = document.getElementById('regPass').value;
         const confirmPass = document.getElementById('regPassConfirm').value;
+        const avatarUrl = document.getElementById('regAvatarFinalUrl')?.value || 'https://api.dicebear.com/7.x/bottts/svg?seed=ProChallenger';
         const errorEl = document.getElementById('registerError');
 
         if (pass !== confirmPass) {
-          if (errorEl) errorEl.textContent = 'As senhas não coincidem!';
+          if (errorEl) errorEl.textContent = 'As senhas informadas não coincidem!';
           return;
         }
 
         try {
-          window.storageEngine.registerUser({ name, username, email, password: pass });
+          const user = window.storageEngine.registerUser({
+            name,
+            username,
+            email,
+            password: pass,
+            avatar_url: avatarUrl
+          });
           if (errorEl) errorEl.textContent = '';
           this.updateUserHeader();
           window.location.hash = 'inicio';
+          if (window.soundEngine) window.soundEngine.playVictory();
+          window.shopManager?.showToast(`Conta criada com sucesso! Bem-vindo ao Table Tennis, ${user.name}!`, 'success');
         } catch (err) {
           if (errorEl) errorEl.textContent = err.message;
         }
       });
     }
 
+    // 5. Daily reward
     const dailyBtn = document.getElementById('btnClaimDaily');
     if (dailyBtn) {
       dailyBtn.addEventListener('click', () => {

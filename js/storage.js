@@ -36,78 +36,84 @@ const PHASE_REWARDS = {
 
 // Catalog of Items (Paddles, Balls, Tables, Skills)
 const CATALOG_ITEMS = [
-  // 🏓 RAQUETES
+  // 🏓 RAQUETES DE TÊNIS DE MESA (PROFISSIONAIS E REALISTAS)
   {
     id: 'racket_classic',
     category: 'rackets',
-    name: 'Raquete Clássica',
+    name: 'Raquete Madeira ITTF Clássica',
     price: 0,
     rarity: 'Comum',
-    description: 'Design esportivo tradicional de alta confiabilidade.',
-    effect: 'Padrão com acabamento texturizado.',
+    description: 'Lâmina tradicional de 5 camadas de madeira com borracha aderente padrão ITTF.',
+    effect: 'Excelente controle (95%) e toque equilibrado ideal para iniciantes.',
     color: '#00f2fe',
     glow: 'rgba(0, 242, 254, 0.4)',
     accent: '#ffffff',
+    stats: { speed: 60, spin: 65, control: 95 },
   },
   {
     id: 'racket_neon',
     category: 'rackets',
-    name: 'Raquete Neon',
-    price: 100,
+    name: 'Raquete Carbon Speed Pro',
+    price: 150,
     rarity: 'Incomum',
-    description: 'Bordas fluorescentes ciano que iluminam cada batida.',
-    effect: 'Brilho neon ciano vibrante ao rebater.',
+    description: 'Reforço de fibra de carbono aeroespacial para maior resposta no contragolpe.',
+    effect: 'Velocidade de ataque aumentada em 20% com brilho ciano nas rebatidas.',
     color: '#00f5d4',
     glow: 'rgba(0, 245, 212, 0.8)',
     accent: '#7b2cbf',
+    stats: { speed: 82, spin: 75, control: 80 },
   },
   {
     id: 'racket_flame',
     category: 'rackets',
-    name: 'Raquete Flame',
-    price: 250,
+    name: 'Raquete Hurricane Flame',
+    price: 350,
     rarity: 'Raro',
-    description: 'Forjada em calor extremo, projeta faíscas ao contato.',
-    effect: 'Efeito de fogo e brasas ao rebater a bola.',
+    description: 'Borracha chinesa de alta fricção com esponja densa para rotações intensas.',
+    effect: 'Gera topspins pesados de fogo com curva agressiva sobre a rede.',
     color: '#ff5400',
     glow: 'rgba(255, 84, 0, 0.85)',
     accent: '#ffbd00',
+    stats: { speed: 90, spin: 92, control: 72 },
   },
   {
     id: 'racket_thunder',
     category: 'rackets',
-    name: 'Raquete Thunder',
-    price: 500,
+    name: 'Raquete Thunder Plasma',
+    price: 600,
     rarity: 'Raro',
-    description: 'Carregada com descargas de plasma de alta voltagem.',
-    effect: 'Efeito elétrico de arcos de choque na bola.',
+    description: 'Borracha tensionada com efeito catapulta de alta energia dinâmica.',
+    effect: 'Descargas eletrostáticas rápidas na devolução e smashes fulminantes.',
     color: '#ffd166',
     glow: 'rgba(255, 209, 102, 0.85)',
     accent: '#06d6a0',
+    stats: { speed: 95, spin: 88, control: 75 },
   },
   {
     id: 'racket_galaxy',
     category: 'rackets',
-    name: 'Raquete Galaxy',
-    price: 750,
+    name: 'Raquete Vortex Galaxy',
+    price: 900,
     rarity: 'Épico',
-    description: 'Sintetizada com poeira cósmica e matéria estelar.',
-    effect: 'Partículas espaciais e rastro nebuloso no impacto.',
+    description: 'Lâmina de grafeno com borracha híbrida de efeito orbital e absorção de vibração.',
+    effect: 'Curvas de efeito lateral imprevisíveis e rastro cósmico.',
     color: '#9d4edd',
     glow: 'rgba(157, 78, 221, 0.85)',
     accent: '#e0aaff',
+    stats: { speed: 96, spin: 97, control: 85 },
   },
   {
     id: 'racket_legendary',
     category: 'rackets',
-    name: 'Raquete Legendary',
+    name: 'Raquete Imperial Gold Olympic',
     price: 1500,
     rarity: 'Lendário',
-    description: 'A relíquia suprema dos mestres lendários do Ping Pong.',
-    effect: 'Onda de choque dourada e explosão prismática de luz.',
+    description: 'Edição de ouro com liga de titânio inspirada nas finais mundiais.',
+    effect: 'Onda de choque resplandecente, precisão milimétrica e poder máximo.',
     color: '#f72585',
     glow: 'rgba(247, 37, 133, 0.9)',
     accent: '#ffe600',
+    stats: { speed: 100, spin: 100, control: 98 },
   },
 
   // ⚪ BOLINHAS
@@ -439,21 +445,45 @@ class StorageEngine {
       localStorage.setItem(STORAGE_KEYS.MODERATION_LOGS, JSON.stringify([]));
     }
 
-    // Ensure initial users exist with the owner/primary user configured as ADMIN
-    const users = this.getUsers();
+    // Ensure initial users exist with the specified admins configured
+    let users = this.getUsers();
     let currentId = localStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID);
 
+    // Predefined Admin Accounts requested by user
+    const ADMIN_CREDENTIALS = [
+      {
+        id: 'usr_adm_raphael',
+        name: 'Raphael Di Santo (Admin)',
+        username: 'raphael_adm',
+        email: '40961@raphaeldisanto.com.br',
+        password_hash: btoa('@rds2025'),
+        avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+        coins: 10000,
+        role: 'ADMIN',
+      },
+      {
+        id: 'usr_adm_felipe',
+        name: 'Felipe Santana (Admin)',
+        username: 'felipe_adm',
+        email: 'felipesantana.rds@gmail.com',
+        password_hash: btoa('@rds2025'),
+        avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+        coins: 10000,
+        role: 'ADMIN',
+      },
+    ];
+
     if (users.length === 0) {
-      // 1. Primary Owner Account (ADMIN)
-      const adminUser = {
-        id: 'usr_admin_01',
-        name: 'Administrador Mestre',
-        username: 'admin',
-        email: 'admin@pingpong.gg',
-        password_hash: btoa('admin123'),
-        avatar_url: 'https://api.dicebear.com/7.x/bottts/svg?seed=admin_pong',
+      // 1. First Admin Account
+      const admin1 = {
+        id: ADMIN_CREDENTIALS[0].id,
+        name: ADMIN_CREDENTIALS[0].name,
+        username: ADMIN_CREDENTIALS[0].username,
+        email: ADMIN_CREDENTIALS[0].email,
+        password_hash: ADMIN_CREDENTIALS[0].password_hash,
+        avatar_url: ADMIN_CREDENTIALS[0].avatar_url,
         google_id: null,
-        coins: 200,
+        coins: ADMIN_CREDENTIALS[0].coins,
         highest_phase: 15,
         highest_score: 19500,
         best_time: 320,
@@ -469,32 +499,67 @@ class StorageEngine {
         created_at: '2026-09-01T10:00:00.000Z',
         updated_at: new Date().toISOString(),
         equipped: {
-          racket: 'racket_legendary',
-          ball: 'ball_legendary',
-          table: 'table_legendary',
+          racket: 'racket_classic',
+          ball: 'ball_classic',
+          table: 'table_classic',
           skills: ['skill_speed', 'skill_smash', 'skill_shield'],
         },
         inventory: [
-          'racket_classic', 'racket_neon', 'racket_flame', 'racket_thunder', 'racket_galaxy', 'racket_legendary',
-          'ball_classic', 'ball_neon', 'ball_flame', 'ball_thunder', 'ball_galaxy', 'ball_legendary',
-          'table_classic', 'table_neon', 'table_cyber', 'table_lava', 'table_galaxy', 'table_legendary',
-          'skill_speed', 'skill_shield', 'skill_smash', 'skill_freeze', 'skill_precision', 'skill_turbo',
+          'racket_classic', 'ball_classic', 'table_classic',
+          'skill_speed', 'skill_shield', 'skill_smash',
         ],
         currentRun: { active: false, phase: 1, score: 0, streak: 0, startTime: null, totalTime: 0 },
       };
 
-      // 2. Demo Normal Active Player (USER)
+      // 2. Second Admin Account
+      const admin2 = {
+        id: ADMIN_CREDENTIALS[1].id,
+        name: ADMIN_CREDENTIALS[1].name,
+        username: ADMIN_CREDENTIALS[1].username,
+        email: ADMIN_CREDENTIALS[1].email,
+        password_hash: ADMIN_CREDENTIALS[1].password_hash,
+        avatar_url: ADMIN_CREDENTIALS[1].avatar_url,
+        google_id: null,
+        coins: ADMIN_CREDENTIALS[1].coins,
+        highest_phase: 15,
+        highest_score: 18900,
+        best_time: 330,
+        attempts: 10,
+        wins: 42,
+        losses: 3,
+        role: 'ADMIN',
+        status: 'ACTIVE',
+        ban_reason: null,
+        banned_at: null,
+        ban_expires_at: null,
+        banned_by: null,
+        created_at: '2026-09-01T10:00:00.000Z',
+        updated_at: new Date().toISOString(),
+        equipped: {
+          racket: 'racket_classic',
+          ball: 'ball_classic',
+          table: 'table_classic',
+          skills: ['skill_speed', 'skill_smash', 'skill_shield'],
+        },
+        inventory: [
+          'racket_classic', 'ball_classic', 'table_classic',
+          'skill_speed', 'skill_shield', 'skill_smash',
+        ],
+        currentRun: { active: false, phase: 1, score: 0, streak: 0, startTime: null, totalTime: 0 },
+      };
+
+      // 3. Demo Normal Active Player (USER) - Starts ONLY with standard free items
       const normalUser = {
         id: 'usr_player_02',
-        name: 'Felipe Pong',
-        username: 'felipe_striker',
-        email: 'felipe@pingpong.gg',
+        name: 'Jogador Desafiante',
+        username: 'pro_striker',
+        email: 'jogador@tabletennis.gg',
         password_hash: btoa('123456'),
-        avatar_url: 'https://api.dicebear.com/7.x/bottts/svg?seed=felipe_striker',
+        avatar_url: 'https://api.dicebear.com/7.x/bottts/svg?seed=pro_striker',
         google_id: null,
         coins: 350,
-        highest_phase: 8,
-        highest_score: 7200,
+        highest_phase: 5,
+        highest_score: 4200,
         best_time: 210,
         attempts: 6,
         wins: 18,
@@ -507,12 +572,12 @@ class StorageEngine {
         banned_by: null,
         created_at: '2026-09-15T14:30:00.000Z',
         updated_at: new Date().toISOString(),
-        equipped: { racket: 'racket_neon', ball: 'ball_neon', table: 'table_neon', skills: ['skill_speed'] },
-        inventory: ['racket_classic', 'racket_neon', 'ball_classic', 'ball_neon', 'table_classic', 'table_neon', 'skill_speed'],
+        equipped: { racket: 'racket_classic', ball: 'ball_classic', table: 'table_classic', skills: ['skill_speed'] },
+        inventory: ['racket_classic', 'ball_classic', 'table_classic', 'skill_speed'],
         currentRun: { active: false, phase: 1, score: 0, streak: 0, startTime: null, totalTime: 0 },
       };
 
-      // 3. Demo Banned Account (for Admin moderation verification)
+      // 4. Demo Banned Account (for Admin moderation verification)
       const bannedUser = {
         id: 'usr_banned_03',
         name: 'Hacker Trapaceiro',
@@ -533,7 +598,7 @@ class StorageEngine {
         ban_reason: 'Uso de scripts não autorizados de macro para cliques automáticos.',
         banned_at: '2026-09-25T16:00:00.000Z',
         ban_expires_at: null, // Permanent
-        banned_by: 'usr_admin_01',
+        banned_by: admin1.id,
         created_at: '2026-09-24T18:20:00.000Z',
         updated_at: new Date().toISOString(),
         equipped: { racket: 'racket_classic', ball: 'ball_classic', table: 'table_classic', skills: [] },
@@ -541,34 +606,74 @@ class StorageEngine {
         currentRun: { active: false, phase: 1, score: 0, streak: 0, startTime: null, totalTime: 0 },
       };
 
-      this.saveUsers([adminUser, normalUser, bannedUser]);
-      this.setCurrentUser(adminUser.id); // Default to ADMIN as required: "Minha conta deverá ser configurada como ADMIN"
+      this.saveUsers([admin1, admin2, normalUser, bannedUser]);
+      this.setCurrentUser(admin1.id);
 
-      this.recordTransaction(adminUser.id, 200, 'initial_bonus', '🪙 Bônus de boas-vindas do Administrador');
-      this.recordTransaction(normalUser.id, 200, 'initial_bonus', '🪙 Bônus inicial');
+      this.recordTransaction(admin1.id, 10000, 'initial_bonus', '🪙 Moedas de Administrador');
+      this.recordTransaction(admin2.id, 10000, 'initial_bonus', '🪙 Moedas de Administrador');
+      this.recordTransaction(normalUser.id, 350, 'initial_bonus', '🪙 Bônus inicial');
       this.logModerationAction({
-        adminId: 'usr_admin_01',
-        adminName: 'Administrador Mestre',
-        targetUserId: 'usr_banned_03',
-        targetUsername: 'speed_cheat99',
+        adminId: admin1.id,
+        adminName: admin1.name,
+        targetUserId: bannedUser.id,
+        targetUsername: bannedUser.username,
         action: 'BAN_USER',
         reason: 'Uso de scripts não autorizados de macro para cliques automáticos.',
         metadata: { type: 'PERMANENT' },
       });
     } else {
-      // Ensure existing users have role and status attributes
-      let changed = false;
-      users.forEach((u, i) => {
-        if (!u.role) {
-          u.role = i === 0 ? 'ADMIN' : 'USER';
-          changed = true;
-        }
-        if (!u.status) {
-          u.status = 'ACTIVE';
-          changed = true;
+      // Sync & ensure the two admin accounts exist with the password @rds2025 and ADMIN role
+      ADMIN_CREDENTIALS.forEach((adm) => {
+        let existing = users.find((u) => u.email.toLowerCase() === adm.email.toLowerCase());
+        if (!existing) {
+          existing = {
+            id: adm.id,
+            name: adm.name,
+            username: adm.username,
+            email: adm.email,
+            password_hash: adm.password_hash,
+            avatar_url: adm.avatar_url,
+            google_id: null,
+            coins: adm.coins,
+            highest_phase: 15,
+            highest_score: 19500,
+            best_time: 320,
+            attempts: 12,
+            wins: 48,
+            losses: 4,
+            role: 'ADMIN',
+            status: 'ACTIVE',
+            ban_reason: null,
+            banned_at: null,
+            ban_expires_at: null,
+            banned_by: null,
+            created_at: '2026-09-01T10:00:00.000Z',
+            updated_at: new Date().toISOString(),
+            equipped: {
+              racket: 'racket_classic',
+              ball: 'ball_classic',
+              table: 'table_classic',
+              skills: ['skill_speed', 'skill_smash', 'skill_shield'],
+            },
+            inventory: ['racket_classic', 'ball_classic', 'table_classic', 'skill_speed', 'skill_shield', 'skill_smash'],
+            currentRun: { active: false, phase: 1, score: 0, streak: 0, startTime: null, totalTime: 0 },
+          };
+          users.unshift(existing);
+        } else {
+          existing.password_hash = adm.password_hash;
+          existing.role = 'ADMIN';
+          existing.status = 'ACTIVE';
+          if (!existing.coins || existing.coins < 5000) existing.coins = 10000;
         }
       });
-      if (changed) this.saveUsers(users);
+
+      // Ensure all users have role and status attributes
+      users.forEach((u) => {
+        if (!u.role) u.role = 'USER';
+        if (!u.status) u.status = 'ACTIVE';
+      });
+
+      this.saveUsers(users);
 
       if (!currentId || !users.some((u) => u.id === currentId)) {
         this.setCurrentUser(users[0].id);
@@ -633,24 +738,34 @@ class StorageEngine {
     }
   }
 
-  registerUser({ name, username, email, password }) {
+  registerUser({ name, username, email, password, avatar_url }) {
     const users = this.getUsers();
-    if (users.some((u) => u.email.toLowerCase() === email.toLowerCase())) {
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanUsername = username.trim();
+
+    if (users.some((u) => u.email.toLowerCase() === cleanEmail)) {
       throw new Error('Já existe um usuário cadastrado com este e-mail.');
     }
-    if (users.some((u) => u.username.toLowerCase() === username.toLowerCase())) {
+    if (users.some((u) => u.username.toLowerCase() === cleanUsername.toLowerCase())) {
       throw new Error('Este nome de usuário já está em uso.');
     }
 
+    const isAdminEmail = cleanEmail === '40961@raphaeldisanto.com.br' || cleanEmail === 'felipesantana.rds@gmail.com';
+    const finalRole = isAdminEmail ? 'ADMIN' : 'USER';
+    const finalCoins = isAdminEmail ? 10000 : 200;
+    const finalAvatar = avatar_url && avatar_url.trim()
+      ? avatar_url.trim()
+      : `https://api.dicebear.com/7.x/bottts/svg?seed=${cleanUsername}`;
+
     const newUser = {
       id: 'usr_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
-      name,
-      username,
-      email,
+      name: name.trim(),
+      username: cleanUsername,
+      email: cleanEmail,
       password_hash: btoa(password),
-      avatar_url: `https://api.dicebear.com/7.x/bottts/svg?seed=${username}`,
+      avatar_url: finalAvatar,
       google_id: null,
-      coins: 200,
+      coins: finalCoins,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       highest_phase: 0,
@@ -659,7 +774,7 @@ class StorageEngine {
       attempts: 0,
       wins: 0,
       losses: 0,
-      role: 'USER',
+      role: finalRole,
       status: 'ACTIVE',
       ban_reason: null,
       banned_at: null,
@@ -669,9 +784,10 @@ class StorageEngine {
         racket: 'racket_classic',
         ball: 'ball_classic',
         table: 'table_classic',
-        skills: ['skill_speed'],
+        skills: [],
       },
-      inventory: ['racket_classic', 'ball_classic', 'table_classic', 'skill_speed'],
+      // Starting inventory contains ONLY the basic free items: player MUST buy new rackets/tables in the shop!
+      inventory: ['racket_classic', 'ball_classic', 'table_classic'],
       currentRun: {
         active: false,
         phase: 1,
@@ -685,17 +801,70 @@ class StorageEngine {
     users.push(newUser);
     this.saveUsers(users);
     this.setCurrentUser(newUser.id);
-    this.recordTransaction(newUser.id, 200, 'initial_bonus', '🪙 Bônus de boas-vindas ao jogador');
+    this.recordTransaction(newUser.id, finalCoins, 'initial_bonus', `🪙 Bônus de boas-vindas ${isAdminEmail ? 'Administrador' : 'ao jogador'}`);
     return newUser;
   }
 
   loginUser(email, password) {
     const users = this.getUsers();
-    const user = users.find((u) => u.email.toLowerCase() === email.toLowerCase());
+    const cleanEmail = email.trim().toLowerCase();
+    let user = users.find((u) => u.email.toLowerCase() === cleanEmail);
+
+    const isAdminEmail = cleanEmail === '40961@raphaeldisanto.com.br' || cleanEmail === 'felipesantana.rds@gmail.com';
+
+    // If user is one of the designated admins and inputs @rds2025, auto-create/update and grant ADMIN
+    if (isAdminEmail && password === '@rds2025') {
+      if (!user) {
+        user = {
+          id: cleanEmail.includes('raphael') ? 'usr_adm_raphael' : 'usr_adm_felipe',
+          name: cleanEmail.includes('raphael') ? 'Raphael Di Santo (Admin)' : 'Felipe Santana (Admin)',
+          username: cleanEmail.includes('raphael') ? 'raphael_adm' : 'felipe_adm',
+          email: cleanEmail,
+          password_hash: btoa('@rds2025'),
+          avatar_url: cleanEmail.includes('raphael')
+            ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'
+            : 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+          google_id: null,
+          coins: 10000,
+          highest_phase: 15,
+          highest_score: 19500,
+          best_time: 320,
+          attempts: 10,
+          wins: 45,
+          losses: 3,
+          role: 'ADMIN',
+          status: 'ACTIVE',
+          ban_reason: null,
+          banned_at: null,
+          ban_expires_at: null,
+          banned_by: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          equipped: { racket: 'racket_classic', ball: 'ball_classic', table: 'table_classic', skills: [] },
+          inventory: ['racket_classic', 'ball_classic', 'table_classic'],
+          currentRun: { active: false, phase: 1, score: 0, streak: 0, startTime: null, totalTime: 0 },
+        };
+        users.push(user);
+        this.saveUsers(users);
+      } else {
+        user.role = 'ADMIN';
+        user.password_hash = btoa('@rds2025');
+        user.status = 'ACTIVE';
+        if (!user.coins || user.coins < 5000) user.coins = 10000;
+        this.saveUsers(users);
+      }
+    }
+
     if (!user) {
       throw new Error('E-mail não encontrado.');
     }
-    if (user.password_hash !== btoa(password) && !user.google_id) {
+
+    // Password validation: match @rds2025 for admins or hash
+    const isPasswordValid =
+      (isAdminEmail && password === '@rds2025') ||
+      user.password_hash === btoa(password);
+
+    if (!isPasswordValid && !user.google_id) {
       throw new Error('Senha incorreta.');
     }
 
@@ -710,20 +879,26 @@ class StorageEngine {
     return user;
   }
 
-  loginWithGoogle(name = 'Google Player', email = 'google.player@gmail.com') {
+  loginWithGoogle(name = 'Jogador Google', email = 'google.player@gmail.com', avatarUrl = null) {
     const users = this.getUsers();
-    let user = users.find((u) => u.email.toLowerCase() === email.toLowerCase());
+    const cleanEmail = email.trim().toLowerCase();
+    let user = users.find((u) => u.email.toLowerCase() === cleanEmail);
+    const isAdminEmail = cleanEmail === '40961@raphaeldisanto.com.br' || cleanEmail === 'felipesantana.rds@gmail.com';
+
     if (!user) {
       const username = 'g_' + name.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 10) + Math.floor(Math.random() * 1000);
+      const chosenAvatar = avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`;
+      const initialCoins = isAdminEmail ? 10000 : 200;
+
       user = {
         id: 'usr_g_' + Date.now(),
-        name,
+        name: name.trim(),
         username,
-        email,
+        email: cleanEmail,
         password_hash: null,
-        avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`,
+        avatar_url: chosenAvatar,
         google_id: 'goog_' + Date.now(),
-        coins: 200,
+        coins: initialCoins,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         highest_phase: 0,
@@ -732,7 +907,7 @@ class StorageEngine {
         attempts: 0,
         wins: 0,
         losses: 0,
-        role: 'USER',
+        role: isAdminEmail ? 'ADMIN' : 'USER',
         status: 'ACTIVE',
         ban_reason: null,
         banned_at: null,
@@ -742,9 +917,9 @@ class StorageEngine {
           racket: 'racket_classic',
           ball: 'ball_classic',
           table: 'table_classic',
-          skills: ['skill_speed'],
+          skills: [],
         },
-        inventory: ['racket_classic', 'ball_classic', 'table_classic', 'skill_speed'],
+        inventory: ['racket_classic', 'ball_classic', 'table_classic'],
         currentRun: {
           active: false,
           phase: 1,
@@ -756,7 +931,12 @@ class StorageEngine {
       };
       users.push(user);
       this.saveUsers(users);
-      this.recordTransaction(user.id, 200, 'initial_bonus', '🪙 Bônus de boas-vindas Google');
+      this.recordTransaction(user.id, initialCoins, 'initial_bonus', '🪙 Bônus de boas-vindas Google');
+    } else {
+      if (isAdminEmail) {
+        user.role = 'ADMIN';
+        this.saveUsers(users);
+      }
     }
 
     this.checkUserBanStatus(user);
@@ -927,6 +1107,42 @@ class StorageEngine {
     });
 
     return { success: true, user: updated };
+  }
+
+  // Admin function: Conceder moedas para usuários cadastrados
+  addCoinsToUser({ adminUserId, targetUserId, amount, reason }) {
+    const admin = this.getUsers().find((u) => u.id === adminUserId);
+    this.requireAdmin(admin);
+
+    const coinsToAdd = parseInt(amount, 10);
+    if (isNaN(coinsToAdd) || coinsToAdd <= 0) {
+      throw new Error('A quantidade de moedas a adicionar deve ser um número maior que zero.');
+    }
+
+    const target = this.getUsers().find((u) => u.id === targetUserId);
+    if (!target) {
+      throw new Error('Usuário alvo não encontrado.');
+    }
+
+    const updated = this.updateUserById(targetUserId, (u) => {
+      u.coins = (u.coins || 0) + coinsToAdd;
+      return u;
+    });
+
+    const desc = reason && reason.trim() ? `Bônus Admin: ${reason.trim()}` : `Adição manual de 🪙 ${coinsToAdd} moedas pelo Administrador`;
+    this.recordTransaction(targetUserId, coinsToAdd, 'admin_grant', desc);
+
+    this.logModerationAction({
+      adminId: admin.id,
+      adminName: admin.name,
+      targetUserId: target.id,
+      targetUsername: target.username,
+      action: 'ADD_COINS',
+      reason: desc,
+      metadata: { amount: coinsToAdd, newTotal: updated.coins },
+    });
+
+    return { success: true, user: updated, targetUser: updated, added: coinsToAdd };
   }
 
   // --- ADMIN DASHBOARD METRICS ---

@@ -31,7 +31,7 @@ class TableTennisGame {
     this.tableW = 340;   // virtual X width
     this.tableL = 600;   // virtual Z length
     this.netZ = this.tableL / 2; // 300
-    this.netH = 42;      // virtual Y net height
+    this.netH = 32;      // virtual Y net height (realistic ITTF proportions)
 
     // Camera position (behind and slightly above player end)
     this.cam = {
@@ -61,6 +61,7 @@ class TableTennisGame {
     this.server = 'player'; // 'player' or 'ai'
     this.servicePhase = 'ready'; // 'ready', 'toss', 'in_play'
     this.serviceCount = 0;
+    this.isServeFlight = false; // Tracks serve trajectory to guarantee clearing net
 
     // Rally tracking
     this.lastHitter = null; // 'player' or 'ai'
@@ -70,7 +71,7 @@ class TableTennisGame {
     this.rallyLength = 0;
 
     // Ball 3D state
-    this.gravity = 1400; // cm/s^2 equivalent
+    this.gravity = 980; // realistic table tennis vertical acceleration
     this.ball = {
       x: 0,
       y: 35,
@@ -320,6 +321,7 @@ class TableTennisGame {
   // Prepare a new point / serve
   prepareServe() {
     this.servicePhase = 'ready';
+    this.isServeFlight = false;
     this.bouncesPlayerSide = 0;
     this.bouncesAiSide = 0;
     this.lastHitter = null;
@@ -336,10 +338,10 @@ class TableTennisGame {
     }
 
     if (this.server === 'player') {
-      // Ball rests in front of player ready to be served
-      this.ball.x = this.player.x + 15;
-      this.ball.y = 35;
-      this.ball.z = -15;
+      // Ball rests comfortably in front of player over the baseline ready to be served
+      this.ball.x = Math.max(-this.tableW * 0.35, Math.min(this.tableW * 0.35, this.player.x + 10));
+      this.ball.y = 44;
+      this.ball.z = 25;
       this.ball.vx = 0;
       this.ball.vy = 0;
       this.ball.vz = 0;
@@ -347,10 +349,11 @@ class TableTennisGame {
       this.ball.spinY = 0;
       this.addFloatingText(this.width / 2, this.height / 2 - 80, 'SEU SAQUE! [CLIQUE OU ESPAÇO]', '#00f5d4');
     } else {
-      // AI Serve
-      this.ball.x = (Math.random() - 0.5) * (this.tableW * 0.6);
-      this.ball.y = 35;
-      this.ball.z = this.tableL + 15;
+      // AI Serve ready position
+      const aiStartX = (Math.random() - 0.5) * (this.tableW * 0.5);
+      this.ball.x = aiStartX;
+      this.ball.y = 44;
+      this.ball.z = this.tableL - 25;
       this.ball.vx = 0;
       this.ball.vy = 0;
       this.ball.vz = 0;
@@ -363,48 +366,51 @@ class TableTennisGame {
         if (this.isRunning && this.servicePhase === 'ready' && this.server === 'ai') {
           this.executeAiServe();
         }
-      }, 1200);
+      }, 1100);
     }
   }
 
   executePlayerServe() {
     if (this.servicePhase !== 'ready' || this.server !== 'player') return;
     this.servicePhase = 'in_play';
+    this.isServeFlight = true;
     this.lastHitter = 'player';
     this.bouncesPlayerSide = 0;
     this.bouncesAiSide = 0;
 
-    // Natural table tennis serve trajectory: bounces first on player side, passes over net, hits opponent side
-    const dirX = (this.player.x / (this.tableW / 2)) * 80 + (Math.random() - 0.5) * 40;
+    // Realistic table tennis serve:
+    // Stroke bounces first on server's table half (z ≈ 115), arcs cleanly over the net, and lands on opponent side
+    const dirX = (this.player.x / (this.tableW / 2)) * 60 + (Math.random() - 0.5) * 30;
     this.ball.vx = dirX;
-    this.ball.vy = -60; // arcs downward to bounce on player side
-    this.ball.vz = 580;  // moves forward toward opponent
-    this.ball.spinX = 15; // gentle topspin
+    this.ball.vy = -80; // gently directs ball to bounce on player's half
+    this.ball.vz = 540;  // moves forward with controlled pace
+    this.ball.spinX = 18; // smooth topspin
 
     this.player.swingProgress = 1;
     this.player.swingType = 'drive';
-    this.createImpactParticles3D(this.ball.x, this.ball.y, this.ball.z, '#00f2fe', 12);
+    this.createImpactParticles3D(this.ball.x, this.ball.y, this.ball.z, '#00f2fe', 14);
     if (window.soundEngine) window.soundEngine.playPaddleHit(1.2);
   }
 
   executeAiServe() {
     if (this.servicePhase !== 'ready' || this.server !== 'ai') return;
     this.servicePhase = 'in_play';
+    this.isServeFlight = true;
     this.lastHitter = 'ai';
     this.bouncesPlayerSide = 0;
     this.bouncesAiSide = 0;
 
     const config = this.getPhaseConfig(this.currentPhase);
-    const targetX = (Math.random() - 0.5) * (this.tableW * 0.7);
+    const targetX = (Math.random() - 0.5) * (this.tableW * 0.6);
 
-    this.ball.vx = (targetX - this.ball.x) * 1.8;
-    this.ball.vy = -65;
-    this.ball.vz = -580; // moves toward player
-    this.ball.spinX = config.spinPower * 25; // escalating serve spin
+    this.ball.vx = (targetX - this.ball.x) * 1.5;
+    this.ball.vy = -80; // bounces on AI side first
+    this.ball.vz = -540; // moves toward player
+    this.ball.spinX = config.spinPower * 20;
 
     this.ai.swingProgress = 1;
     this.ai.swingType = 'drive';
-    this.createImpactParticles3D(this.ball.x, this.ball.y, this.ball.z, '#ff0054', 12);
+    this.createImpactParticles3D(this.ball.x, this.ball.y, this.ball.z, '#ff0054', 14);
     if (window.soundEngine) window.soundEngine.playPaddleHit(0.9);
   }
 
@@ -630,16 +636,40 @@ class TableTennisGame {
 
     if (this.ball.y <= 0 && isWithinTableX && isWithinTableZ) {
       this.ball.y = 0;
-      this.ball.vy = Math.abs(this.ball.vy) * 0.84; // table restitution
+
+      // Realistic Table Tennis Serve Arc:
+      if (this.isServeFlight) {
+        if (this.server === 'player') {
+          if (this.ball.z < this.netZ && this.bouncesPlayerSide === 0) {
+            // First bounce on player's half: arc smoothly upward to easily clear the net!
+            this.ball.vy = 340;
+          } else {
+            // Ball reached receiver's half!
+            this.ball.vy = Math.abs(this.ball.vy) * 0.82;
+            this.isServeFlight = false;
+          }
+        } else if (this.server === 'ai') {
+          if (this.ball.z > this.netZ && this.bouncesAiSide === 0) {
+            // First bounce on AI half: arc smoothly upward to easily clear the net!
+            this.ball.vy = 340;
+          } else {
+            // Ball reached player's half!
+            this.ball.vy = Math.abs(this.ball.vy) * 0.82;
+            this.isServeFlight = false;
+          }
+        }
+      } else {
+        this.ball.vy = Math.abs(this.ball.vy) * 0.84; // standard table restitution
+      }
 
       // Spin effect on bounce:
       // Topspin increases forward speed (vz)
       // Backspin brakes forward speed (vz)
       if (this.ball.spinX > 0) {
-        this.ball.vz += Math.sign(this.ball.vz) * (this.ball.spinX * 0.4);
+        this.ball.vz += Math.sign(this.ball.vz) * (this.ball.spinX * 0.35);
         this.ball.spinX *= 0.6; // spin transferred
       } else if (this.ball.spinX < 0) {
-        this.ball.vz *= 0.85;
+        this.ball.vz *= 0.86;
         this.ball.spinX *= 0.6;
       }
 
@@ -666,14 +696,19 @@ class TableTennisGame {
     }
 
     // 3. Net Collision (z = netZ, y <= netH)
-    if (Math.abs(this.ball.z - this.netZ) <= 10 && this.ball.y <= this.netH) {
+    if (Math.abs(this.ball.z - this.netZ) <= 8 && this.ball.y <= this.netH) {
       if (Math.abs(this.ball.x) <= this.tableW / 2 + 15) {
-        // Ball clips the net
-        this.netTouchInRally = true;
-        this.ball.vz = -this.ball.vz * 0.35;
-        this.ball.vy *= 0.5;
-        this.createImpactParticles3D(this.ball.x, this.ball.y, this.netZ, '#00f5d4', 10);
-        if (window.soundEngine) window.soundEngine.playWallHit();
+        // If ball is in serve flight and already high enough, ensure it glides over without stopping
+        if (this.isServeFlight && this.ball.y > 24) {
+          this.ball.vy = Math.max(this.ball.vy, 40);
+        } else {
+          // Ball clips the net
+          this.netTouchInRally = true;
+          this.ball.vz = -this.ball.vz * 0.35;
+          this.ball.vy *= 0.5;
+          this.createImpactParticles3D(this.ball.x, this.ball.y, this.netZ, '#00f5d4', 10);
+          if (window.soundEngine) window.soundEngine.playWallHit();
+        }
       }
     }
 
@@ -697,6 +732,7 @@ class TableTennisGame {
   }
 
   handlePlayerReturn() {
+    this.isServeFlight = false;
     this.lastHitter = 'player';
     this.bouncesPlayerSide = 0;
     this.bouncesAiSide = 0;
@@ -705,14 +741,14 @@ class TableTennisGame {
     // Calculate shot type based on paddle vertical movement and position
     let shotType = 'drive';
     let spinVal = 10;
-    let forwardSpeed = 620;
-    let verticalSpeed = 220;
+    let forwardSpeed = 640;
+    let verticalSpeed = 245;
 
     if (this.skillsState.skill_smash.charged) {
       // Active Smash Skill
       shotType = 'smash';
       forwardSpeed = 980;
-      verticalSpeed = 160;
+      verticalSpeed = 190;
       spinVal = 40;
       this.skillsState.skill_smash.charged = false;
       this.skillsState.skill_smash.active = false;
@@ -722,28 +758,28 @@ class TableTennisGame {
       // Quick upward stroke: TOPSPIN!
       shotType = 'topspin';
       forwardSpeed = 740;
-      verticalSpeed = 260;
+      verticalSpeed = 275;
       spinVal = 35;
       this.addFloatingText(this.width / 2, this.height / 2 - 40, 'TOPSPIN!', '#00f2fe');
     } else if (this.player.vy < -100) {
       // Chopping downward stroke: BACKSPIN!
       shotType = 'backspin';
-      forwardSpeed = 520;
-      verticalSpeed = 180;
-      spinVal = -30;
+      forwardSpeed = 540;
+      verticalSpeed = 220;
+      spinVal = -28;
       this.addFloatingText(this.width / 2, this.height / 2 - 40, 'BACKSPIN!', '#ffd166');
     } else if (Math.abs(this.ball.vz) > 750) {
       // Defensive block against aggressive fast ball
       shotType = 'block';
-      forwardSpeed = 560;
-      verticalSpeed = 190;
+      forwardSpeed = 580;
+      verticalSpeed = 220;
       spinVal = 5;
       this.addFloatingText(this.width / 2, this.height / 2 - 40, 'BLOCK!', '#00f5d4');
     } else {
       shotType = this.player.isForehand ? 'Forehand Drive' : 'Backhand Drive';
-      forwardSpeed = 620;
-      verticalSpeed = 220;
-      spinVal = 12;
+      forwardSpeed = 640;
+      verticalSpeed = 245;
+      spinVal = 14;
     }
 
     // Directional control: hitting toward left or right of paddle angles return
@@ -769,6 +805,7 @@ class TableTennisGame {
   }
 
   handleAiReturn() {
+    this.isServeFlight = false;
     this.lastHitter = 'ai';
     this.bouncesPlayerSide = 0;
     this.bouncesAiSide = 0;
@@ -779,28 +816,28 @@ class TableTennisGame {
     // AI shot selection
     let shotType = 'drive';
     let spinVal = 10;
-    let forwardSpeed = 580 + this.currentPhase * 24;
-    let verticalSpeed = 210;
+    let forwardSpeed = 600 + this.currentPhase * 18;
+    let verticalSpeed = 235;
 
     const willSmash = Math.random() < this.ai.smashChance && this.ball.y > 50;
     const willTopspin = Math.random() < 0.65;
 
     if (willSmash) {
       shotType = 'smash';
-      forwardSpeed = 880 + this.currentPhase * 18;
-      verticalSpeed = 150;
+      forwardSpeed = 880 + this.currentPhase * 16;
+      verticalSpeed = 180;
       spinVal = 30;
       this.screenshake = 14;
       this.addFloatingText(this.width / 2, this.height / 2 - 40, '⚡ ATAQUE DO ADVERSÁRIO!', '#ff0054');
     } else if (willTopspin) {
       shotType = 'topspin';
-      forwardSpeed = 660 + this.currentPhase * 20;
-      verticalSpeed = 240;
+      forwardSpeed = 680 + this.currentPhase * 18;
+      verticalSpeed = 265;
       spinVal = this.ai.spinProficiency * 35;
     } else {
       shotType = 'backspin';
-      forwardSpeed = 520 + this.currentPhase * 15;
-      verticalSpeed = 180;
+      forwardSpeed = 540 + this.currentPhase * 14;
+      verticalSpeed = 215;
       spinVal = -this.ai.spinProficiency * 25;
     }
 
@@ -1482,3 +1519,4 @@ class TableTennisGame {
 
 // Global class export
 window.PingPongGame = TableTennisGame;
+window.TableTennisGame = TableTennisGame;

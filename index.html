@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PING PONG — 15 CHALLENGE | Tênis de Mesa Competitivo</title>
-  <meta name="description" content="Jogo web competitivo de tênis de mesa com 15 fases, partidas com regra de 12 pontos e vantagem de 2, loja, ranking global e painel administrativo completo.">
+  <title>TABLE TENNIS — 15 CHALLENGE | Tênis de Mesa Profissional</title>
+  <meta name="description" content="Jogo web realista de Table Tennis (Tênis de Mesa) com 15 fases, partidas com regra de 12 pontos e vantagem de 2, loja de raquetes, física apurada, ranking global e painel administrativo.">
 
   <!-- Google Fonts: Orbitron for Gamer Headers, Rajdhani for futuristic accents, Inter for clean UI -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -25,7 +25,7 @@
       <div class="brand-logo" onclick="window.location.hash='inicio'">
         <span class="logo-icon">🏓</span>
         <div class="logo-text">
-          <span class="logo-main">PING PONG</span>
+          <span class="logo-main">TABLE TENNIS</span>
           <span class="logo-sub">15 CHALLENGE</span>
         </div>
       </div>
@@ -79,8 +79,8 @@
     <section id="view-inicio" class="app-view active">
       <div class="view-hero">
         <div class="hero-content">
-          <div class="hero-tag">🔥 TÊNIS DE MESA COMPETITIVO</div>
-          <h1 class="hero-title">PING PONG <span class="gradient-text">15 CHALLENGE</span></h1>
+          <div class="hero-tag">🔥 TÊNIS DE MESA PROFISSIONAL</div>
+          <h1 class="hero-title">TABLE TENNIS <span class="gradient-text">15 CHALLENGE</span></h1>
           <p class="hero-slogan">"15 fases. Uma tentativa. Você consegue chegar ao topo?"</p>
           <p class="hero-desc">
             Enfrente 15 adversários em partidas disputadas até <strong>pelo menos 12 pontos com 2 de vantagem</strong>.
@@ -529,22 +529,77 @@
       <div class="auth-wrapper">
         <div class="auth-card glass-panel">
           <div class="auth-brand">
-            <span class="auth-icon">✨</span>
+            <span class="auth-icon">🏓</span>
             <h2>CRIAR CONTA</h2>
-            <p>Comece com 200 moedas e dispute o Ranking Global</p>
+            <p>Junte-se ao Table Tennis — 15 Challenge e comece com 200 moedas</p>
           </div>
 
           <form id="formRegister" class="auth-form">
             <div id="registerError" class="auth-error-msg"></div>
 
+            <!-- Profile Picture Selection Section -->
+            <div class="reg-avatar-card">
+              <label class="form-subheading">Sua Foto de Perfil</label>
+              <div class="reg-avatar-row">
+                <div class="reg-avatar-circle-wrap">
+                  <img id="regAvatarPreview" src="https://api.dicebear.com/7.x/bottts/svg?seed=striker" alt="Preview da Foto" class="reg-avatar-circle">
+                </div>
+                <div class="reg-avatar-controls">
+                  <span class="avatar-title">Escolha como definir sua foto:</span>
+                  <div class="avatar-actions-wrap">
+                    <label for="regAvatarFileInput" class="btn-file-avatar">
+                      📁 Foto do Computador
+                    </label>
+                    <input type="file" id="regAvatarFileInput" accept="image/*" style="display:none;">
+                  </div>
+                </div>
+              </div>
+
+              <!-- Preset Avatars Gallery -->
+              <div class="avatar-gallery-label"><small>Ou escolha um dos avatares oficiais de tênis de mesa:</small></div>
+              <div class="avatar-presets-grid" id="regAvatarPresetsGrid">
+                <!-- Dynamically populated or static presets -->
+                <button type="button" class="avatar-preset-btn active" data-url="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80">
+                  <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80" alt="Avatar 1">
+                </button>
+                <button type="button" class="avatar-preset-btn" data-url="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80">
+                  <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80" alt="Avatar 2">
+                </button>
+                <button type="button" class="avatar-preset-btn" data-url="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80">
+                  <img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80" alt="Avatar 3">
+                </button>
+                <button type="button" class="avatar-preset-btn" data-url="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80">
+                  <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80" alt="Avatar 4">
+                </button>
+                <button type="button" class="avatar-preset-btn" data-url="https://api.dicebear.com/7.x/bottts/svg?seed=cyber_striker">
+                  <img src="https://api.dicebear.com/7.x/bottts/svg?seed=cyber_striker" alt="Avatar Cyber">
+                </button>
+                <button type="button" class="avatar-preset-btn" data-url="https://api.dicebear.com/7.x/bottts/svg?seed=legend_fire">
+                  <img src="https://api.dicebear.com/7.x/bottts/svg?seed=legend_fire" alt="Avatar Flame">
+                </button>
+                <button type="button" class="avatar-preset-btn" data-url="https://api.dicebear.com/7.x/avataaars/svg?seed=ace_champion">
+                  <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=ace_champion" alt="Avatar Champion">
+                </button>
+                <button type="button" class="avatar-preset-btn" data-url="https://api.dicebear.com/7.x/avataaars/svg?seed=table_queen">
+                  <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=table_queen" alt="Avatar Queen">
+                </button>
+              </div>
+
+              <!-- Optional custom URL -->
+              <div class="avatar-url-input-wrap">
+                <input type="url" id="regAvatarUrlInput" placeholder="Ou cole o link direto de uma imagem (https://...)" class="input-sm">
+              </div>
+              <input type="hidden" id="regAvatarFinalUrl" value="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80">
+            </div>
+
             <div class="form-group">
               <label for="regName">Nome Completo</label>
-              <input type="text" id="regName" required placeholder="João Silva">
+              <input type="text" id="regName" required placeholder="Ex: Felipe Santana">
             </div>
 
             <div class="form-group">
               <label for="regUsername">Nome de Usuário (Nick)</label>
-              <input type="text" id="regUsername" required placeholder="player123">
+              <input type="text" id="regUsername" required placeholder="Ex: felipe_spin">
             </div>
 
             <div class="form-group">
@@ -564,6 +619,13 @@
 
             <button type="submit" class="btn-primary-glow btn-block">CRIAR CONTA E COMEÇAR</button>
           </form>
+
+          <div class="auth-divider"><span>OU</span></div>
+
+          <button id="btnGoogleRegister" class="btn-google-oauth">
+            <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.7l3.1-3.1C17.3 1.8 14.8 1 12 1 7.4 1 3.5 3.6 1.6 7.3l3.7 2.9C6.2 7.3 8.9 5 12 5z"/><path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.6h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.9z"/><path fill="#FBBC05" d="M5.3 14.8c-.2-.7-.4-1.5-.4-2.3 0-.8.1-1.6.4-2.3L1.6 7.3C.6 9.3 0 10.6 0 12.5s.6 3.2 1.6 5.2l3.7-2.9z"/><path fill="#34A853" d="M12 24c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3.1 0-5.8-2.3-6.7-5.2L1.6 17c1.9 3.7 5.8 7 10.4 7z"/></svg>
+            CADASTRAR COM O GOOGLE
+          </button>
 
           <div class="auth-footer-text">
             Já possui uma conta? <a href="#login">ENTRAR</a>
@@ -708,9 +770,14 @@
 
           <!-- TAB 2: USUÁRIOS -->
           <div id="adminTab-users" class="admin-subview">
-            <div class="admin-section-header">
-              <h2>👥 Gerenciamento de Usuários</h2>
-              <p>Pesquise, filtre e aplique moderação em contas registradas.</p>
+            <div class="admin-section-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+              <div>
+                <h2>👥 Gerenciamento de Usuários</h2>
+                <p>Pesquise, filtre, adicione moedas e aplique moderação em contas registradas.</p>
+              </div>
+              <button id="btnOpenAddCoinsModal" class="btn-primary-glow btn-sm">
+                <span class="icon">🪙</span> ➕ Conceder Moedas
+              </button>
             </div>
 
             <!-- Search and Filter Bar -->
@@ -1133,6 +1200,97 @@
 
       <div id="userDetailsContent" class="user-details-body">
         <!-- Rendered via JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- 7. ADMIN: ADD COINS TO USER MODAL -->
+  <div id="modalAddCoins" class="modal-backdrop">
+    <div class="modal-card glass-panel" style="max-width: 520px;">
+      <button class="modal-close-btn" id="modalAddCoinsClose">&times;</button>
+      <div class="modal-header">
+        <h2 class="modal-item-title highlight-gold">🪙 CONCEDER MOEDAS A USUÁRIO</h2>
+      </div>
+
+      <form id="formAddCoins" class="auth-form">
+        <div class="form-group">
+          <label for="addCoinsTargetUser">Selecionar Usuário:</label>
+          <select id="addCoinsTargetUser" class="admin-select" required></select>
+        </div>
+
+        <div class="form-group">
+          <label>Saldo Atual do Usuário:</label>
+          <div id="addCoinsCurrentBalance" class="current-balance-display">🪙 0</div>
+        </div>
+
+        <div class="form-group">
+          <label for="addCoinsAmount">Quantidade de Moedas a Adicionar:</label>
+          <input type="number" id="addCoinsAmount" required min="1" max="1000000" placeholder="Ex: 500" class="admin-input-number">
+          <div class="quick-coins-pills">
+            <button type="button" class="btn-coin-pill" data-amount="100">+100</button>
+            <button type="button" class="btn-coin-pill" data-amount="500">+500</button>
+            <button type="button" class="btn-coin-pill" data-amount="1000">+1.000</button>
+            <button type="button" class="btn-coin-pill" data-amount="5000">+5.000</button>
+            <button type="button" class="btn-coin-pill" data-amount="10000">+10.000</button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="addCoinsReason">Motivo da Concessão (Opcional):</label>
+          <input type="text" id="addCoinsReason" placeholder="Ex: Bônus de evento, suporte, premiação...">
+        </div>
+
+        <div class="modal-actions-container">
+          <button type="button" class="btn-secondary" id="btnCancelAddCoins">Cancelar</button>
+          <button type="submit" class="btn-primary-glow">Confirmar e Enviar Moedas</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 8. GOOGLE SIGN-IN MODAL (OAUTH SIMULATOR & REALISTIC SELECTOR) -->
+  <div id="modalGoogleAuth" class="modal-backdrop">
+    <div class="modal-card google-modal-card glass-panel" style="max-width: 480px;">
+      <button class="modal-close-btn" id="modalGoogleClose">&times;</button>
+      <div class="google-modal-header">
+        <svg width="34" height="34" viewBox="0 0 24 24"><path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.7l3.1-3.1C17.3 1.8 14.8 1 12 1 7.4 1 3.5 3.6 1.6 7.3l3.7 2.9C6.2 7.3 8.9 5 12 5z"/><path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.6h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.9z"/><path fill="#FBBC05" d="M5.3 14.8c-.2-.7-.4-1.5-.4-2.3 0-.8.1-1.6.4-2.3L1.6 7.3C.6 9.3 0 10.6 0 12.5s.6 3.2 1.6 5.2l3.7-2.9z"/><path fill="#34A853" d="M12 24c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3.1 0-5.8-2.3-6.7-5.2L1.6 17c1.9 3.7 5.8 7 10.4 7z"/></svg>
+        <h3>Fazer login com o Google</h3>
+        <p>Escolha uma conta para continuar no Table Tennis</p>
+      </div>
+
+      <div class="google-accounts-list" id="googleAccountsList">
+        <div class="google-account-item" data-email="felipesantana.rds@gmail.com" data-name="Felipe Santana" data-avatar="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80">
+          <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80" class="g-avatar" alt="Avatar">
+          <div class="g-info">
+            <strong>Felipe Santana <span class="g-badge-admin">Admin</span></strong>
+            <small>felipesantana.rds@gmail.com</small>
+          </div>
+        </div>
+
+        <div class="google-account-item" data-email="40961@raphaeldisanto.com.br" data-name="Raphael Di Santo" data-avatar="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80">
+          <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" class="g-avatar" alt="Avatar">
+          <div class="g-info">
+            <strong>Raphael Di Santo <span class="g-badge-admin">Admin</span></strong>
+            <small>40961@raphaeldisanto.com.br</small>
+          </div>
+        </div>
+
+        <div class="google-account-item" data-email="jogador.google@gmail.com" data-name="Jogador Google" data-avatar="https://api.dicebear.com/7.x/avataaars/svg?seed=jogador_google">
+          <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=jogador_google" class="g-avatar" alt="Avatar">
+          <div class="g-info">
+            <strong>Jogador Convidado</strong>
+            <small>jogador.google@gmail.com</small>
+          </div>
+        </div>
+      </div>
+
+      <div class="google-custom-login-box">
+        <span class="g-or-text">Ou insira uma conta Google personalizada:</span>
+        <div class="g-input-row">
+          <input type="text" id="gCustomName" placeholder="Seu Nome Completo">
+          <input type="email" id="gCustomEmail" placeholder="seu.email@gmail.com">
+          <button type="button" id="btnConfirmCustomGoogle" class="btn-primary-glow btn-block">Acessar com esta conta</button>
+        </div>
       </div>
     </div>
   </div>

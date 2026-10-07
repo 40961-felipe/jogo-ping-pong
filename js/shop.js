@@ -100,28 +100,59 @@ class ShopManager {
         </div>`;
       }
 
-      // Button State
+      // Realistic Stats Bars (Speed, Spin, Control) for Table Tennis Rackets
+      let statsHtml = '';
+      if (item.category === 'rackets' && item.stats) {
+        statsHtml = `
+          <div class="racket-stats-mini">
+            <div class="stat-mini-row">
+              <span class="s-label">⚡ Velocidade</span>
+              <div class="s-bar"><div class="s-fill" style="width: ${item.stats.speed}%;"></div></div>
+              <span class="s-val">${item.stats.speed}</span>
+            </div>
+            <div class="stat-mini-row">
+              <span class="s-label">🌀 Efeito (Spin)</span>
+              <div class="s-bar"><div class="s-fill s-spin" style="width: ${item.stats.spin}%;"></div></div>
+              <span class="s-val">${item.stats.spin}</span>
+            </div>
+            <div class="stat-mini-row">
+              <span class="s-label">🎯 Controle</span>
+              <div class="s-bar"><div class="s-fill s-ctrl" style="width: ${item.stats.control}%;"></div></div>
+              <span class="s-val">${item.stats.control}</span>
+            </div>
+          </div>
+        `;
+      }
+
+      // Button State: Only allow EQUIP if owned! Otherwise show COMPRAR with coins check
       let actionBtnHtml = '';
       if (isEquipped) {
-        actionBtnHtml = `<button class="btn-item-action btn-equipped" disabled>EQUIPADO</button>`;
+        actionBtnHtml = `<button class="btn-item-action btn-equipped" disabled>EQUIPADO ✓</button>`;
       } else if (isOwned) {
         actionBtnHtml = `<button class="btn-item-action btn-equip" data-id="${item.id}">EQUIPAR</button>`;
       } else {
         const canAfford = (user?.coins || 0) >= item.price;
-        actionBtnHtml = `<button class="btn-item-action btn-buy ${canAfford ? '' : 'btn-disabled'}" data-id="${item.id}">
-          COMPRAR 🪙 ${item.price}
-        </button>`;
+        if (item.price === 0) {
+          actionBtnHtml = `<button class="btn-item-action btn-buy btn-free" data-id="${item.id}">RESGATAR GRÁTIS</button>`;
+        } else {
+          actionBtnHtml = `<button class="btn-item-action btn-buy ${canAfford ? '' : 'btn-insufficient'}" data-id="${item.id}">
+            COMPRAR 🪙 ${item.price}
+          </button>`;
+        }
       }
 
       card.innerHTML = `
         <div class="card-top">
           <span class="rarity-badge ${rarityClass}">${item.rarity.toUpperCase()}</span>
-          <span class="item-price-tag">🪙 ${item.price === 0 ? 'GRÁTIS' : item.price}</span>
+          <span class="item-price-tag ${isOwned ? 'item-owned-tag' : ''}">
+            ${isOwned ? 'ADQUIRIDO' : item.price === 0 ? 'GRÁTIS' : '🪙 ' + item.price}
+          </span>
         </div>
         ${iconHtml}
         <div class="card-info">
           <h3 class="item-name">${item.name}</h3>
           <p class="item-description">${item.description}</p>
+          ${statsHtml}
           <div class="item-effect-note"><small>✨ ${item.effect}</small></div>
         </div>
         <div class="card-actions">
@@ -267,11 +298,27 @@ class ShopManager {
 
   // --- ACTIONS ---
   handleBuy(itemId) {
+    const user = window.storageEngine.getCurrentUser();
+    const item = window.storageEngine.getCatalog().find((i) => i.id === itemId);
+    if (!item) return;
+
+    if (!user) {
+      this.showToast('Você precisa entrar ou criar uma conta para adquirir itens!', 'error');
+      window.location.hash = 'login';
+      return;
+    }
+
+    if (user.coins < item.price) {
+      if (window.soundEngine) window.soundEngine.playScore(false);
+      this.showToast(`🪙 Moedas insuficientes! Você tem 🪙 ${(user.coins || 0).toLocaleString('pt-BR')}, mas o item custa 🪙 ${item.price.toLocaleString('pt-BR')}. Vença fases no desafio para ganhar moedas!`, 'error');
+      return;
+    }
+
     try {
       const res = window.storageEngine.buyItem(itemId);
       if (res && res.success) {
         if (window.soundEngine) window.soundEngine.playCoin();
-        this.showToast(`🎉 Você comprou ${res.item.name}!`, 'success');
+        this.showToast(`🎉 Parabéns! Você comprou ${res.item.name}! Clique em EQUIPAR para usá-lo.`, 'success');
         this.updateHeaderCoins();
         this.renderShop();
         this.renderInventory();
@@ -283,6 +330,18 @@ class ShopManager {
   }
 
   handleEquip(itemId) {
+    const user = window.storageEngine.getCurrentUser();
+    if (!user) {
+      this.showToast('Faça login primeiro!', 'error');
+      window.location.hash = 'login';
+      return;
+    }
+
+    if (!user.inventory.includes(itemId)) {
+      this.showToast('Você não possui este item. Compre-o na loja antes de equipar!', 'error');
+      return;
+    }
+
     try {
       const res = window.storageEngine.equipItem(itemId);
       if (res && res.success) {
@@ -317,12 +376,18 @@ class ShopManager {
     // Fill details
     document.getElementById('prevItemName').textContent = item.name;
     document.getElementById('prevItemDesc').textContent = item.description;
-    document.getElementById('prevItemEffect').textContent = item.effect;
+    
+    // Add stats in effect box if present
+    let effectDesc = item.effect;
+    if (item.category === 'rackets' && item.stats) {
+      effectDesc += ` [Velocidade: ${item.stats.speed} | Efeito: ${item.stats.spin} | Controle: ${item.stats.control}]`;
+    }
+    document.getElementById('prevItemEffect').textContent = effectDesc;
     document.getElementById('prevItemRarity').textContent = item.rarity.toUpperCase();
     document.getElementById('prevItemRarity').className = `badge-rarity-${item.rarity.toLowerCase()}`;
-    document.getElementById('prevItemPrice').textContent = `🪙 ${item.price === 0 ? 'Grátis' : item.price}`;
+    document.getElementById('prevItemPrice').textContent = `🪙 ${item.price === 0 ? 'Grátis' : item.price.toLocaleString('pt-BR')}`;
 
-    // Action button
+    // Action button: Strictly enforce Buy vs Equip
     const user = window.storageEngine.getCurrentUser();
     const isOwned = user ? user.inventory.includes(item.id) : false;
     let isEquipped = false;
@@ -336,7 +401,7 @@ class ShopManager {
     const actionContainer = document.getElementById('prevActionBtnContainer');
     if (actionContainer) {
       if (isEquipped) {
-        actionContainer.innerHTML = `<button class="btn-equipped" disabled>JÁ EQUIPADO</button>`;
+        actionContainer.innerHTML = `<button class="btn-equipped" disabled>JÁ EQUIPADO ✓</button>`;
       } else if (isOwned) {
         actionContainer.innerHTML = `<button class="btn-modal-action btn-equip" id="prevEquipBtn">EQUIPAR ITEM</button>`;
         document.getElementById('prevEquipBtn').addEventListener('click', () => {
@@ -344,7 +409,8 @@ class ShopManager {
           this.closePreviewModal();
         });
       } else {
-        actionContainer.innerHTML = `<button class="btn-modal-action btn-buy" id="prevBuyBtn">COMPRAR (🪙 ${item.price})</button>`;
+        const canAfford = (user?.coins || 0) >= item.price;
+        actionContainer.innerHTML = `<button class="btn-modal-action btn-buy ${canAfford ? '' : 'btn-insufficient'}" id="prevBuyBtn">COMPRAR (🪙 ${item.price.toLocaleString('pt-BR')})</button>`;
         document.getElementById('prevBuyBtn').addEventListener('click', () => {
           this.handleBuy(item.id);
           this.closePreviewModal();
