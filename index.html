@@ -179,6 +179,7 @@
           </div>
 
           <div class="hud-actions">
+            <button id="btnFullscreen" class="btn-hud-icon" title="Alternar Tela Cheia [F]">⛶ Tela Cheia</button>
             <button id="btnInGamePause" class="btn-hud-icon" title="Pausar Partida [ESPAÇO]">⏸️</button>
             <button id="btnInGameLeave" class="btn-hud-icon" title="Sair da Partida">🚪</button>
           </div>
@@ -1209,7 +1210,7 @@
     <div class="modal-card glass-panel" style="max-width: 520px;">
       <button class="modal-close-btn" id="modalAddCoinsClose">&times;</button>
       <div class="modal-header">
-        <h2 class="modal-item-title highlight-gold">🪙 CONCEDER MOEDAS A USUÁRIO</h2>
+        <h2 class="modal-item-title highlight-gold">🪙 DEFINIR OU CONCEDER MOEDAS</h2>
       </div>
 
       <form id="formAddCoins" class="auth-form">
@@ -1224,8 +1225,22 @@
         </div>
 
         <div class="form-group">
+          <label>Modo de Operação:</label>
+          <div class="admin-mode-selector">
+            <button type="button" class="btn-adm-mode active" id="btnModeSetCoins">✍️ Digitar Novo Saldo Exato</button>
+            <button type="button" class="btn-adm-mode" id="btnModeAddCoins">➕ Adicionar Moedas</button>
+          </div>
+        </div>
+
+        <div class="form-group" id="groupSetBalance">
+          <label for="inputExactCoins">Novo Saldo Total do Usuário (Moedas):</label>
+          <input type="number" id="inputExactCoins" min="0" max="10000000" placeholder="Ex: 5000" class="admin-input-number">
+          <small class="form-hint" style="color: #94a3b8; font-size: 0.8rem; display: block; margin-top: 4px;">O saldo do jogador será atualizado exatamente para este número.</small>
+        </div>
+
+        <div class="form-group" id="groupAddBalance" style="display: none;">
           <label for="addCoinsAmount">Quantidade de Moedas a Adicionar:</label>
-          <input type="number" id="addCoinsAmount" required min="1" max="1000000" placeholder="Ex: 500" class="admin-input-number">
+          <input type="number" id="addCoinsAmount" min="1" max="1000000" placeholder="Ex: 500" class="admin-input-number">
           <div class="quick-coins-pills">
             <button type="button" class="btn-coin-pill" data-amount="100">+100</button>
             <button type="button" class="btn-coin-pill" data-amount="500">+500</button>
@@ -1236,13 +1251,13 @@
         </div>
 
         <div class="form-group">
-          <label for="addCoinsReason">Motivo da Concessão (Opcional):</label>
-          <input type="text" id="addCoinsReason" placeholder="Ex: Bônus de evento, suporte, premiação...">
+          <label for="addCoinsReason">Motivo da Modificação (Opcional):</label>
+          <input type="text" id="addCoinsReason" placeholder="Ex: Ajuste administrativo, premiação, bônus...">
         </div>
 
         <div class="modal-actions-container">
           <button type="button" class="btn-secondary" id="btnCancelAddCoins">Cancelar</button>
-          <button type="submit" class="btn-primary-glow">Confirmar e Enviar Moedas</button>
+          <button type="submit" class="btn-primary-glow">Salvar Saldo</button>
         </div>
       </form>
     </div>
@@ -1259,27 +1274,19 @@
       </div>
 
       <div class="google-accounts-list" id="googleAccountsList">
-        <div class="google-account-item" data-email="felipesantana.rds@gmail.com" data-name="Felipe Santana" data-avatar="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80">
-          <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80" class="g-avatar" alt="Avatar">
+        <div class="google-account-item" data-email="jogador.tenis@gmail.com" data-name="Atleta Convidado" data-avatar="https://api.dicebear.com/7.x/avataaars/svg?seed=atleta_google">
+          <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=atleta_google" class="g-avatar" alt="Avatar">
           <div class="g-info">
-            <strong>Felipe Santana <span class="g-badge-admin">Admin</span></strong>
-            <small>felipesantana.rds@gmail.com</small>
+            <strong>Atleta Convidado</strong>
+            <small>jogador.tenis@gmail.com</small>
           </div>
         </div>
 
-        <div class="google-account-item" data-email="40961@raphaeldisanto.com.br" data-name="Raphael Di Santo" data-avatar="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80">
-          <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" class="g-avatar" alt="Avatar">
+        <div class="google-account-item" data-email="desafiante.pro@gmail.com" data-name="Desafiante Pro" data-avatar="https://api.dicebear.com/7.x/bottts/svg?seed=desafiante_pro">
+          <img src="https://api.dicebear.com/7.x/bottts/svg?seed=desafiante_pro" class="g-avatar" alt="Avatar">
           <div class="g-info">
-            <strong>Raphael Di Santo <span class="g-badge-admin">Admin</span></strong>
-            <small>40961@raphaeldisanto.com.br</small>
-          </div>
-        </div>
-
-        <div class="google-account-item" data-email="jogador.google@gmail.com" data-name="Jogador Google" data-avatar="https://api.dicebear.com/7.x/avataaars/svg?seed=jogador_google">
-          <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=jogador_google" class="g-avatar" alt="Avatar">
-          <div class="g-info">
-            <strong>Jogador Convidado</strong>
-            <small>jogador.google@gmail.com</small>
+            <strong>Desafiante Pro</strong>
+            <small>desafiante.pro@gmail.com</small>
           </div>
         </div>
       </div>

@@ -1,3 +1,7 @@
+
+
+
+
 /**
  * Storage & Backend Simulation Layer for Ping Pong 15 Challenge
  * Enforces business logic, economy, ranking, authentication, inventory,
@@ -339,86 +343,8 @@ const CATALOG_ITEMS = [
   },
 ];
 
-// Initial mock leaderboards (elite players)
-const DEFAULT_GLOBAL_RANKING = [
-  {
-    id: 'bot_1',
-    name: 'Alex "CyberLord"',
-    username: 'cyber_alex',
-    avatar: 'https://images.unsplash.com/photo-1566492031773-4f4e44671857?w=150&auto=format&fit=crop&q=80',
-    maxPhase: 15,
-    score: 18450,
-    totalTime: 382,
-    attempts: 4,
-    date: '2026-09-28',
-  },
-  {
-    id: 'bot_2',
-    name: 'Valkyrie Prime',
-    username: 'valk_99',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-    maxPhase: 15,
-    score: 17200,
-    totalTime: 415,
-    attempts: 7,
-    date: '2026-09-29',
-  },
-  {
-    id: 'bot_3',
-    name: 'Hiroshi Tanaka',
-    username: 'hiro_spin',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
-    maxPhase: 14,
-    score: 14900,
-    totalTime: 360,
-    attempts: 9,
-    date: '2026-09-30',
-  },
-  {
-    id: 'bot_4',
-    name: 'Elena Rostova',
-    username: 'elena_pong',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
-    maxPhase: 13,
-    score: 12850,
-    totalTime: 340,
-    attempts: 5,
-    date: '2026-09-27',
-  },
-  {
-    id: 'bot_5',
-    name: 'Marcus Bolt',
-    username: 'mbolt',
-    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
-    maxPhase: 12,
-    score: 11200,
-    totalTime: 310,
-    attempts: 11,
-    date: '2026-09-26',
-  },
-  {
-    id: 'bot_6',
-    name: 'Camila Santos',
-    username: 'cami_fast',
-    avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80',
-    maxPhase: 10,
-    score: 8750,
-    totalTime: 245,
-    attempts: 6,
-    date: '2026-09-25',
-  },
-  {
-    id: 'bot_7',
-    name: 'Neo Smash',
-    username: 'neosmash',
-    avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80',
-    maxPhase: 9,
-    score: 7400,
-    totalTime: 220,
-    attempts: 8,
-    date: '2026-09-24',
-  },
-];
+// Initial empty leaderboards - ranking contains only registered players
+const DEFAULT_GLOBAL_RANKING = [];
 
 class StorageEngine {
   constructor() {
@@ -429,9 +355,25 @@ class StorageEngine {
     if (!localStorage.getItem(STORAGE_KEYS.USERS)) {
       localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify([]));
     }
-    if (!localStorage.getItem(STORAGE_KEYS.GLOBAL_RANKING)) {
-      localStorage.setItem(STORAGE_KEYS.GLOBAL_RANKING, JSON.stringify(DEFAULT_GLOBAL_RANKING));
+    
+    // Ensure ranking is clean: remove any old bots and mock entries
+    let currentRanking = [];
+    try {
+      const stored = localStorage.getItem(STORAGE_KEYS.GLOBAL_RANKING);
+      if (stored) {
+        currentRanking = JSON.parse(stored);
+      }
+    } catch {
+      currentRanking = [];
     }
+    if (Array.isArray(currentRanking)) {
+      currentRanking = currentRanking.filter(
+        (p) => p && p.id && !p.id.startsWith('bot_') && p.id !== 'usr_player_02' && p.id !== 'usr_banned_03'
+      );
+    } else {
+      currentRanking = [];
+    }
+    localStorage.setItem(STORAGE_KEYS.GLOBAL_RANKING, JSON.stringify(currentRanking));
     if (!localStorage.getItem(STORAGE_KEYS.TRANSACTIONS)) {
       localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify([]));
     }
@@ -802,6 +744,7 @@ class StorageEngine {
     this.saveUsers(users);
     this.setCurrentUser(newUser.id);
     this.recordTransaction(newUser.id, finalCoins, 'initial_bonus', `🪙 Bônus de boas-vindas ${isAdminEmail ? 'Administrador' : 'ao jogador'}`);
+    this.syncUserToGlobalRanking(newUser);
     return newUser;
   }
 
@@ -932,6 +875,7 @@ class StorageEngine {
       users.push(user);
       this.saveUsers(users);
       this.recordTransaction(user.id, initialCoins, 'initial_bonus', '🪙 Bônus de boas-vindas Google');
+      this.syncUserToGlobalRanking(user);
     } else {
       if (isAdminEmail) {
         user.role = 'ADMIN';
@@ -1509,7 +1453,7 @@ class StorageEngine {
       history.unshift(match);
       if (history.length > 200) history.pop();
       localStorage.setItem(STORAGE_KEYS.MATCH_HISTORY, JSON.stringify(history));
-    } catch {}
+    } catch { }
   }
 
   getUserMatchHistory(userId) {
@@ -1526,9 +1470,20 @@ class StorageEngine {
     let list = [];
     try {
       list = JSON.parse(localStorage.getItem(STORAGE_KEYS.GLOBAL_RANKING) || '[]');
+      if (!Array.isArray(list)) list = [];
     } catch {
-      list = [...DEFAULT_GLOBAL_RANKING];
+      list = [];
     }
+
+    // Keep ONLY real registered users (exclude mock bots and banned/suspended users)
+    const users = this.getUsers();
+    list = list.filter((p) => {
+      if (!p || !p.id) return false;
+      if (p.id.startsWith('bot_') || p.id === 'usr_player_02' || p.id === 'usr_banned_03') return false;
+      const userObj = users.find((u) => u.id === p.id);
+      if (!userObj || userObj.status === 'BANNED' || userObj.status === 'SUSPENDED') return false;
+      return true;
+    });
 
     // Sort order:
     // 1. Highest Phase reached without defeat (descending)
@@ -1536,20 +1491,36 @@ class StorageEngine {
     // 3. Lowest Total Time (ascending)
     // 4. Most recent date (descending)
     list.sort((a, b) => {
-      if (b.maxPhase !== a.maxPhase) return b.maxPhase - a.maxPhase;
-      if (b.score !== a.score) return b.score - a.score;
-      if ((a.totalTime || 9999) !== (b.totalTime || 9999)) {
-        return (a.totalTime || 9999) - (b.totalTime || 9999);
-      }
-      return new Date(b.date) - new Date(a.date);
+      const phaseA = a.maxPhase || 0;
+      const phaseB = b.maxPhase || 0;
+      if (phaseB !== phaseA) return phaseB - phaseA;
+
+      const scoreA = a.score || 0;
+      const scoreB = b.score || 0;
+      if (scoreB !== scoreA) return scoreB - scoreA;
+
+      const timeA = a.totalTime > 0 ? a.totalTime : 9999;
+      const timeB = b.totalTime > 0 ? b.totalTime : 9999;
+      if (timeA !== timeB) return timeA - timeB;
+
+      return new Date(b.date || 0) - new Date(a.date || 0);
     });
 
     return list;
   }
 
   syncUserToGlobalRanking(user) {
-    if (!user || user.highest_phase === 0) return;
+    if (!user) return;
+    if (user.id.startsWith('bot_') || user.id === 'usr_player_02' || user.id === 'usr_banned_03') return;
+
     let list = this.getGlobalRanking();
+
+    // If user is banned or suspended, remove from ranking
+    if (user.status === 'BANNED' || user.status === 'SUSPENDED') {
+      list = list.filter((p) => p.id !== user.id);
+      localStorage.setItem(STORAGE_KEYS.GLOBAL_RANKING, JSON.stringify(list));
+      return;
+    }
 
     const existingIndex = list.findIndex((p) => p.id === user.id);
     const entry = {
@@ -1557,21 +1528,27 @@ class StorageEngine {
       name: user.name,
       username: user.username,
       avatar: user.avatar_url,
-      maxPhase: user.highest_phase,
-      score: user.highest_score,
-      totalTime: user.best_time || 350,
-      attempts: user.attempts || 1,
-      date: new Date().toISOString().split('T')[0],
+      maxPhase: user.highest_phase || 0,
+      score: user.highest_score || 0,
+      totalTime: user.best_time || 0,
+      attempts: user.attempts || 0,
+      date: (user.created_at || new Date().toISOString()).split('T')[0],
       isCurrentUser: true,
     };
 
     if (existingIndex !== -1) {
-      if (
-        entry.maxPhase > list[existingIndex].maxPhase ||
-        (entry.maxPhase === list[existingIndex].maxPhase && entry.score > list[existingIndex].score)
-      ) {
-        list[existingIndex] = entry;
-      }
+      const cur = list[existingIndex];
+      list[existingIndex] = {
+        ...cur,
+        name: user.name,
+        username: user.username,
+        avatar: user.avatar_url,
+        maxPhase: Math.max(cur.maxPhase || 0, user.highest_phase || 0),
+        score: Math.max(cur.score || 0, user.highest_score || 0),
+        totalTime: user.best_time || cur.totalTime || 0,
+        attempts: Math.max(cur.attempts || 0, user.attempts || 0),
+        date: new Date().toISOString().split('T')[0],
+      };
     } else {
       list.push(entry);
     }
@@ -1582,7 +1559,7 @@ class StorageEngine {
   getUserRankPosition(userId) {
     const list = this.getGlobalRanking();
     const index = list.findIndex((item) => item.id === userId);
-    return index !== -1 ? index + 1 : list.length + 1;
+    return index !== -1 ? index + 1 : (list.length > 0 ? list.length + 1 : 1);
   }
 }
 

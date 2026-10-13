@@ -1,3 +1,6 @@
+
+
+
 /**
  * Shop & Inventory Manager for Ping Pong 15 Challenge
  * Handles catalog browsing, interactive item preview modal with live Canvas rendering,
@@ -262,11 +265,10 @@ class ShopManager {
         </div>
         <div class="card-actions">
           <button class="btn-preview" data-id="${item.id}">VISUALIZAR</button>
-          ${
-            isEquipped
-              ? `<button class="btn-item-action btn-equipped" disabled>EM USO</button>`
-              : `<button class="btn-item-action btn-equip" data-id="${item.id}">EQUIPAR</button>`
-          }
+          ${isEquipped
+          ? `<button class="btn-item-action btn-equipped" disabled>EM USO</button>`
+          : `<button class="btn-item-action btn-equip" data-id="${item.id}">EQUIPAR</button>`
+        }
         </div>
       `;
 
@@ -376,7 +378,7 @@ class ShopManager {
     // Fill details
     document.getElementById('prevItemName').textContent = item.name;
     document.getElementById('prevItemDesc').textContent = item.description;
-    
+
     // Add stats in effect box if present
     let effectDesc = item.effect;
     if (item.category === 'rackets' && item.stats) {
@@ -556,24 +558,62 @@ class ShopManager {
     ctx.translate(padCenterX, padCenterY);
     ctx.rotate(0.12);
 
-    // Wooden handle
-    ctx.fillStyle = '#b45309';
-    ctx.fillRect(-3.5, 18, 7, 20);
+    // Contoured Wooden handle
+    const hGrad = ctx.createLinearGradient(-5, 0, 5, 0);
+    hGrad.addColorStop(0, '#582f0e');
+    hGrad.addColorStop(0.5, '#936639');
+    hGrad.addColorStop(1, '#582f0e');
+    ctx.fillStyle = hGrad;
+    ctx.fillRect(-4.5, 18, 9, 22);
 
-    // Racket Bevel
-    ctx.fillStyle = '#d97706';
+    // Handle Birch Inlay Racing Stripe
+    ctx.fillStyle = '#ede0d4';
+    ctx.fillRect(-1.5, 19, 3, 20);
+
+    // Handle Medallion Lens
+    ctx.fillStyle = '#ffd700';
     ctx.beginPath();
-    ctx.ellipse(0, 0, 17, 24, 0, 0, Math.PI * 2);
+    ctx.arc(0, 34, 2.5, 0, Math.PI * 2);
     ctx.fill();
 
-    // Racket Rubber Face
+    // 3D Plywood Rim Bevel
+    ctx.fillStyle = '#331800';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 18.5, 25.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#c68b59';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 17.5, 24.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Black ITTF Edge Tape
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 18, 25, 0, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // High-Tension Racket Rubber Face
     let pColor = item.category === 'rackets' ? item.color : '#dc2626';
     ctx.shadowColor = item.category === 'rackets' ? item.glow : 'rgba(220, 38, 38, 0.6)';
-    ctx.shadowBlur = 12;
-    ctx.fillStyle = pColor;
+    ctx.shadowBlur = 14;
+
+    const rGrad = ctx.createRadialGradient(-4, -6, 2, 0, 0, 18);
+    rGrad.addColorStop(0, '#ffffff');
+    rGrad.addColorStop(0.25, pColor);
+    rGrad.addColorStop(1, '#1e0000');
+    ctx.fillStyle = rGrad;
     ctx.beginPath();
-    ctx.ellipse(0, 0, 15, 22, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 0, 16, 23, 0, 0, Math.PI * 2);
     ctx.fill();
+
+    // Specular highlight arc
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.ellipse(-3, -4, 9, 13, 0, -Math.PI * 0.7, -Math.PI * 0.2);
+    ctx.stroke();
     ctx.restore();
 
     // Render particles

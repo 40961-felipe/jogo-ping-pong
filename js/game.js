@@ -28,10 +28,10 @@ class TableTennisGame {
     this.ballRadiusReal = 2.0;   // cm (40mm ball)
 
     // Virtual 3D scale units
-    this.tableW = 340;   // virtual X width
+    this.tableW = 490;   // virtual X width (extra wide tournament table)
     this.tableL = 600;   // virtual Z length
     this.netZ = this.tableL / 2; // 300
-    this.netH = 32;      // virtual Y net height (realistic ITTF proportions)
+    this.netH = 34;      // virtual Y net height (realistic ITTF proportions)
 
     // Camera position (behind and slightly above player end)
     this.cam = {
@@ -98,9 +98,9 @@ class TableTennisGame {
       isForehand: true,
       swingProgress: 0,
       swingType: 'drive', // 'topspin', 'backspin', 'smash', 'block', 'drive'
-      reach: 55,
-      height: 70,
-      width: 52,
+      reach: 75,
+      height: 95,
+      width: 78,
     };
 
     // AI Paddle (Background, 3D)
@@ -110,7 +110,7 @@ class TableTennisGame {
       z: this.tableL + 30,
       targetX: 0,
       targetY: 40,
-      speedX: 380,
+      speedX: 420,
       speedY: 280,
       lerp: 0.08,
       errorOffset: 0,
@@ -119,8 +119,8 @@ class TableTennisGame {
       isForehand: false,
       swingProgress: 0,
       swingType: 'drive',
-      height: 65,
-      width: 48,
+      height: 80,
+      width: 65,
     };
 
     // Active skills state
@@ -206,8 +206,8 @@ class TableTennisGame {
       const normY = (clientY - rect.top) / rect.height;
 
       // Map screen coordinates into 3D player space
-      // Lateral X: from -tableW * 0.75 to +tableW * 0.75
-      const target3DX = (normX - 0.5) * (this.tableW * 1.5);
+      // Lateral X: from -tableW * 0.72 to +tableW * 0.72
+      const target3DX = (normX - 0.5) * (this.tableW * 1.35);
       // Vertical Y: from 5 to 110 cm
       const target3DY = Math.max(8, Math.min(125, (1 - normY) * 160));
 
@@ -612,9 +612,14 @@ class TableTennisGame {
   }
 
   updateBallPhysics(dt) {
+    const prevX = this.ball.x;
+    const prevY = this.ball.y;
+    const prevZ = this.ball.z;
+
     // 1. Gravity and Magnus spin effect
     // Topspin (spinX > 0) causes downward aerodynamic curve
     // Backspin (spinX < 0) causes upward floating aerodynamic lift
+    // Sidespin (spinY) creates lateral curve arc
     const magnusY = -this.ball.spinX * 3.8;
     const magnusX = this.ball.spinY * 3.2;
 
@@ -627,71 +632,89 @@ class TableTennisGame {
 
     // Trail
     this.ball.trail.push({ x: this.ball.x, y: this.ball.y, z: this.ball.z, alpha: 0.9 });
-    if (this.ball.trail.length > 12) this.ball.trail.shift();
+    if (this.ball.trail.length > 14) this.ball.trail.shift();
     this.ball.trail.forEach((t) => (t.alpha *= 0.88));
 
-    // 2. Table Bounce Collision (y = 0 is table surface)
-    const isWithinTableX = Math.abs(this.ball.x) <= this.tableW / 2;
-    const isWithinTableZ = this.ball.z >= 0 && this.ball.z <= this.tableL;
+    // 2. Continuous Table Bounce Collision (y = 0 plane)
+    // Check if the ball crossed the y = 0 plane during this integration step
+    const crossedTablePlane = (prevY >= -4 && this.ball.y <= 2 && (prevY > 0 || this.ball.y <= 0));
 
-    if (this.ball.y <= 0 && isWithinTableX && isWithinTableZ) {
-      this.ball.y = 0;
+    if (crossedTablePlane) {
+      const dy = prevY - this.ball.y;
+      const t = dy !== 0 ? Math.max(0, Math.min(1, prevY / dy)) : 0.5;
+      const crossX = prevX + (this.ball.x - prevX) * t;
+      const crossZ = prevZ + (this.ball.z - prevZ) * t;
 
-      // Realistic Table Tennis Serve Arc:
-      if (this.isServeFlight) {
-        if (this.server === 'player') {
-          if (this.ball.z < this.netZ && this.bouncesPlayerSide === 0) {
-            // First bounce on player's half: arc smoothly upward to easily clear the net!
-            this.ball.vy = 340;
-          } else {
-            // Ball reached receiver's half!
-            this.ball.vy = Math.abs(this.ball.vy) * 0.82;
-            this.isServeFlight = false;
+      // Generous table boundary edge tolerance so curving shots bounce reliably
+      const halfW = this.tableW / 2 + 14;
+      const isWithinTableX = Math.abs(crossX) <= halfW;
+      const isWithinTableZ = crossZ >= -10 && crossZ <= this.tableL + 15;
+
+      if (isWithinTableX && isWithinTableZ) {
+        this.ball.y = 0;
+        this.ball.x = crossX;
+        this.ball.z = crossZ;
+
+        // Realistic Table Tennis Serve Arc:
+        if (this.isServeFlight) {
+          if (this.server === 'player') {
+            if (this.ball.z < this.netZ && this.bouncesPlayerSide === 0) {
+              // First bounce on player's half: arc smoothly upward to easily clear the net!
+              this.ball.vy = 340;
+            } else {
+              // Ball reached receiver's half!
+              this.ball.vy = Math.abs(this.ball.vy) * 0.82;
+              this.isServeFlight = false;
+            }
+          } else if (this.server === 'ai') {
+            if (this.ball.z > this.netZ && this.bouncesAiSide === 0) {
+              // First bounce on AI half: arc smoothly upward to easily clear the net!
+              this.ball.vy = 340;
+            } else {
+              // Ball reached player's half!
+              this.ball.vy = Math.abs(this.ball.vy) * 0.82;
+              this.isServeFlight = false;
+            }
           }
-        } else if (this.server === 'ai') {
-          if (this.ball.z > this.netZ && this.bouncesAiSide === 0) {
-            // First bounce on AI half: arc smoothly upward to easily clear the net!
-            this.ball.vy = 340;
-          } else {
-            // Ball reached player's half!
-            this.ball.vy = Math.abs(this.ball.vy) * 0.82;
-            this.isServeFlight = false;
-          }
+        } else {
+          this.ball.vy = Math.abs(this.ball.vy) * 0.84; // standard table restitution
         }
-      } else {
-        this.ball.vy = Math.abs(this.ball.vy) * 0.84; // standard table restitution
-      }
 
-      // Spin effect on bounce:
-      // Topspin increases forward speed (vz)
-      // Backspin brakes forward speed (vz)
-      if (this.ball.spinX > 0) {
-        this.ball.vz += Math.sign(this.ball.vz) * (this.ball.spinX * 0.35);
-        this.ball.spinX *= 0.6; // spin transferred
-      } else if (this.ball.spinX < 0) {
-        this.ball.vz *= 0.86;
-        this.ball.spinX *= 0.6;
-      }
+        // Spin effect on bounce:
+        // Topspin increases forward speed (vz)
+        // Backspin brakes forward speed (vz)
+        if (this.ball.spinX > 0) {
+          this.ball.vz += Math.sign(this.ball.vz) * (this.ball.spinX * 0.35);
+          this.ball.spinX *= 0.6; // spin transferred
+        } else if (this.ball.spinX < 0) {
+          this.ball.vz *= 0.86;
+          this.ball.spinX *= 0.6;
+        }
 
-      // Check which side of table the bounce occurred
-      if (this.ball.z < this.netZ) {
-        this.bouncesPlayerSide++;
-      } else {
-        this.bouncesAiSide++;
-      }
+        // Slight sidespin transfer into lateral bounce kick
+        this.ball.vx += this.ball.spinY * 1.4;
+        this.ball.spinY *= 0.7;
 
-      // Visuals & Sound for bounce
-      this.createImpactParticles3D(this.ball.x, 0, this.ball.z, '#ffffff', 8);
-      if (window.soundEngine) window.soundEngine.playWallHit();
+        // Check which side of table the bounce occurred
+        if (this.ball.z < this.netZ) {
+          this.bouncesPlayerSide++;
+        } else {
+          this.bouncesAiSide++;
+        }
 
-      // Check illegal double bounce
-      if (this.bouncesPlayerSide >= 2) {
-        this.awardPoint('ai', 'Dois quiques no campo do jogador!');
-        return;
-      }
-      if (this.bouncesAiSide >= 2) {
-        this.awardPoint('player', 'Dois quiques no campo do adversário!');
-        return;
+        // Visuals & Sound for bounce
+        this.createImpactParticles3D(this.ball.x, 0, this.ball.z, '#ffffff', 8);
+        if (window.soundEngine) window.soundEngine.playWallHit();
+
+        // Check illegal double bounce
+        if (this.bouncesPlayerSide >= 2) {
+          this.awardPoint('ai', 'Dois quiques no campo do jogador!');
+          return;
+        }
+        if (this.bouncesAiSide >= 2) {
+          this.awardPoint('player', 'Dois quiques no campo do adversário!');
+          return;
+        }
       }
     }
 
@@ -715,8 +738,8 @@ class TableTennisGame {
     // 4. Player Paddle Hit Detection (when ball approaches z ~ 0)
     if (
       this.ball.vz < 0 &&
-      this.ball.z <= this.player.z + 25 &&
-      this.ball.z >= this.player.z - 35
+      this.ball.z <= this.player.z + 28 &&
+      this.ball.z >= this.player.z - 40
     ) {
       const dist = Math.hypot(this.ball.x - this.player.x, this.ball.y - this.player.y);
       if (dist <= this.player.reach) {
@@ -740,7 +763,7 @@ class TableTennisGame {
 
     // Calculate shot type based on paddle vertical movement and position
     let shotType = 'drive';
-    let spinVal = 10;
+    let spinVal = 14;
     let forwardSpeed = 640;
     let verticalSpeed = 245;
 
@@ -782,15 +805,39 @@ class TableTennisGame {
       spinVal = 14;
     }
 
-    // Directional control: hitting toward left or right of paddle angles return
-    const offsetRatio = (this.ball.x - this.player.x) / this.player.reach;
-    const lateralSpeed = offsetRatio * 260;
+    // Directional control and Sidespin / Curve:
+    // offsetRatio: -1 (left edge of paddle) to +1 (right edge of paddle)
+    const offsetRatio = Math.max(-1, Math.min(1, (this.ball.x - this.player.x) / this.player.reach));
+    // Player lateral paddle swipe brush (from mouse or keys velocity)
+    const brushVelocity = Math.max(-450, Math.min(450, this.player.vx));
+    const brushRatio = brushVelocity / 450;
 
-    this.ball.vx = lateralSpeed;
+    // Sidespin (curve) imparted: combined paddle contact offset + brushing swipe motion
+    const spinY = (offsetRatio * 16) + (brushRatio * 20);
+
+    // Aim target on opponent's table: safely inside opponent court [-tableW * 0.42, +tableW * 0.42]
+    const targetX = Math.max(
+      -this.tableW * 0.42,
+      Math.min(this.tableW * 0.42, (offsetRatio * 0.65 + brushRatio * 0.35) * (this.tableW * 0.42))
+    );
+
+    // Estimated flight time to opponent baseline
+    const flightTime = Math.max(0.35, (this.tableL - this.ball.z) / forwardSpeed);
+
+    // Initial lateral velocity vx: compensate for Magnus curve acceleration (spinY * 3.2)
+    // so that curved shots bend gracefully through the air AND land on the table!
+    const magnusAx = spinY * 3.2;
+    const requiredVx = (targetX - this.ball.x) / flightTime - 0.5 * magnusAx * flightTime;
+
+    this.ball.vx = Math.max(-340, Math.min(340, requiredVx));
     this.ball.vy = verticalSpeed;
     this.ball.vz = forwardSpeed;
     this.ball.spinX = spinVal;
-    this.ball.spinY = offsetRatio * 15;
+    this.ball.spinY = spinY;
+
+    if (Math.abs(spinY) > 10) {
+      this.addFloatingText(this.width / 2, this.height / 2 - 25, '🔄 CURVA COM EFEITO!', '#c084fc');
+    }
 
     this.player.swingProgress = 1;
     this.player.swingType = shotType;
@@ -1068,37 +1115,195 @@ class TableTennisGame {
     const tableItem = window.storageEngine?.getCatalog().find((i) => i.id === tableId);
     const theme = tableItem?.theme || 'classic';
 
-    // Sports Arena Gradient Backdrop
-    const bgGrad = this.ctx.createLinearGradient(0, 0, 0, this.height);
+    // 1. Stadium Ceiling & Upper Atmosphere
+    const ceilingGrad = this.ctx.createLinearGradient(0, 0, 0, this.cam.horizonY);
     if (theme === 'neon' || theme === 'cyber') {
-      bgGrad.addColorStop(0, '#040711');
-      bgGrad.addColorStop(0.4, '#081022');
-      bgGrad.addColorStop(1, '#020408');
+      ceilingGrad.addColorStop(0, '#02050e');
+      ceilingGrad.addColorStop(0.5, '#071126');
+      ceilingGrad.addColorStop(1, '#030814');
     } else if (theme === 'lava') {
-      bgGrad.addColorStop(0, '#150303');
-      bgGrad.addColorStop(0.4, '#240808');
-      bgGrad.addColorStop(1, '#0a0202');
-    } else if (theme === 'galaxy') {
-      bgGrad.addColorStop(0, '#060114');
-      bgGrad.addColorStop(0.4, '#10052a');
-      bgGrad.addColorStop(1, '#050110');
+      ceilingGrad.addColorStop(0, '#100202');
+      ceilingGrad.addColorStop(0.5, '#200707');
+      ceilingGrad.addColorStop(1, '#090202');
     } else {
-      bgGrad.addColorStop(0, '#070b14');
-      bgGrad.addColorStop(0.4, '#0d1728');
-      bgGrad.addColorStop(1, '#05080f');
+      ceilingGrad.addColorStop(0, '#030712');
+      ceilingGrad.addColorStop(0.5, '#0b162c');
+      ceilingGrad.addColorStop(1, '#060d1b');
     }
-
-    this.ctx.fillStyle = bgGrad;
+    this.ctx.fillStyle = ceilingGrad;
     this.ctx.fillRect(0, 0, this.width, this.height);
 
-    // Floor Parquet / Sports Rubber Mat Perspective Lines
+    // 2. Steel Arena Trusses & Roof Girders
     this.ctx.save();
-    this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
-    this.ctx.lineWidth = 1;
+    this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+    this.ctx.lineWidth = 1.5;
+    for (let tx = 80; tx < this.width; tx += 160) {
+      this.ctx.beginPath();
+      this.ctx.moveTo(tx, 0);
+      this.ctx.lineTo(tx, 130);
+      this.ctx.lineTo(tx + 80, 0);
+      this.ctx.stroke();
+    }
+    this.ctx.restore();
+
+    // 3. Realistic Bleachers / Arquibancadas with Audience (Tiers 1, 2, 3, 4)
+    const bleacherTopY = 45;
+    const bleacherBotY = 230;
+    const rows = 9;
+    const rowHeight = (bleacherBotY - bleacherTopY) / rows;
+
+    // Crowd Palette (realistic spectator clothing)
+    const crowdShirts = [
+      '#dc2626', '#2563eb', '#16a34a', '#eab308', '#9333ea',
+      '#0d9488', '#ea580c', '#ffffff', '#475569', '#38bdf8'
+    ];
+    const crowdFaces = ['#fbcfe8', '#fed7aa', '#fde047', '#fecdd3', '#d97706', '#92400e'];
+
+    // Draw stepped concrete tiers and spectators
+    for (let r = 0; r < rows; r++) {
+      const rowY = bleacherTopY + r * rowHeight;
+      const rowScale = 0.65 + (r / rows) * 0.35; // perspective depth
+
+      // Concrete tier step
+      this.ctx.fillStyle = r % 2 === 0 ? 'rgba(15, 23, 42, 0.95)' : 'rgba(30, 41, 59, 0.9)';
+      this.ctx.fillRect(0, rowY, this.width, rowHeight);
+
+      // Tier shadow line
+      this.ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+      this.ctx.fillRect(0, rowY + rowHeight - 2, this.width, 2);
+
+      // Spectators along this row
+      const stepWidth = 16 * rowScale;
+      for (let sx = 10; sx < this.width - 10; sx += stepWidth + 2) {
+        // Pseudo-random deterministic spectator appearance
+        const seed = Math.sin(sx * 12.3 + r * 45.7);
+        if (seed > -0.85) { // 90% seat occupancy
+          const shirtColor = crowdShirts[Math.abs(Math.floor(seed * 100)) % crowdShirts.length];
+          const faceColor = crowdFaces[Math.abs(Math.floor(seed * 77)) % crowdFaces.length];
+
+          const headRadius = 3.5 * rowScale;
+          const bodyW = 9 * rowScale;
+          const bodyH = 8 * rowScale;
+          const bodyY = rowY + rowHeight - bodyH;
+          const headY = bodyY - headRadius;
+
+          // Body / Torso
+          this.ctx.fillStyle = shirtColor;
+          this.ctx.beginPath();
+          this.ctx.roundRect ? this.ctx.roundRect(sx, bodyY, bodyW, bodyH, 2) : this.ctx.rect(sx, bodyY, bodyW, bodyH);
+          this.ctx.fill();
+
+          // Head
+          this.ctx.fillStyle = faceColor;
+          this.ctx.beginPath();
+          this.ctx.arc(sx + bodyW / 2, headY, headRadius, 0, Math.PI * 2);
+          this.ctx.fill();
+
+          // Hair / Cap
+          this.ctx.fillStyle = seed > 0 ? '#1e293b' : '#78350f';
+          this.ctx.beginPath();
+          this.ctx.arc(sx + bodyW / 2, headY - 1, headRadius * 0.85, Math.PI, Math.PI * 2);
+          this.ctx.fill();
+        }
+      }
+    }
+
+    // 4. Dynamic Camera Flashes in Grandstands (realistic Olympic atmosphere!)
+    this.ctx.save();
+    if (Math.random() < 0.12) {
+      const flashX = Math.random() * (this.width - 80) + 40;
+      const flashY = Math.random() * (bleacherBotY - bleacherTopY) + bleacherTopY;
+      const flashR = Math.random() * 12 + 6;
+
+      const flashGrad = this.ctx.createRadialGradient(flashX, flashY, 1, flashX, flashY, flashR);
+      flashGrad.addColorStop(0, '#ffffff');
+      flashGrad.addColorStop(0.3, 'rgba(255, 255, 255, 0.8)');
+      flashGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+
+      this.ctx.fillStyle = flashGrad;
+      this.ctx.beginPath();
+      this.ctx.arc(flashX, flashY, flashR, 0, Math.PI * 2);
+      this.ctx.fill();
+    }
+    this.ctx.restore();
+
+    // 5. Overhead Stadium Floodlights (conical soft light beams onto the table)
+    const lights = [
+      { x: 140, y: 15, targetX: this.width * 0.35, targetY: this.height * 0.75 },
+      { x: 400, y: 10, targetX: this.width * 0.48, targetY: this.height * 0.7 },
+      { x: 700, y: 10, targetX: this.width * 0.52, targetY: this.height * 0.7 },
+      { x: 960, y: 15, targetX: this.width * 0.65, targetY: this.height * 0.75 },
+    ];
+
+    lights.forEach((l) => {
+      // Light housing
+      this.ctx.fillStyle = '#cbd5e1';
+      this.ctx.fillRect(l.x - 16, l.y - 4, 32, 10);
+
+      // Light beam
+      const beamGrad = this.ctx.createRadialGradient(l.x, l.y, 10, l.targetX, l.targetY, 420);
+      beamGrad.addColorStop(0, 'rgba(255, 255, 255, 0.12)');
+      beamGrad.addColorStop(0.5, 'rgba(0, 242, 254, 0.04)');
+      beamGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+      this.ctx.fillStyle = beamGrad;
+      this.ctx.beginPath();
+      this.ctx.moveTo(l.x - 14, l.y + 6);
+      this.ctx.lineTo(l.targetX + 160, l.targetY);
+      this.ctx.lineTo(l.targetX - 160, l.targetY);
+      this.ctx.closePath();
+      this.ctx.fill();
+    });
+
+    // 6. Tournament LED Perimeter Banners (Apara-Bolas / Court Enclosure)
+    const barrierY = bleacherBotY + 2;
+    const barrierH = 34;
+    this.ctx.fillStyle = '#0b162a';
+    this.ctx.fillRect(0, barrierY, this.width, barrierH);
+
+    // Glowing LED Banner Trim
+    this.ctx.fillStyle = '#00f2fe';
+    this.ctx.shadowColor = '#00f2fe';
+    this.ctx.shadowBlur = 8;
+    this.ctx.fillRect(0, barrierY, this.width, 2.5);
+
+    // Digital Sponsor Typography across barrier
+    this.ctx.save();
+    this.ctx.font = '700 11px "Orbitron", sans-serif';
+    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+    this.ctx.textAlign = 'center';
+    this.ctx.fillText('🏓 WORLD TABLE TENNIS CHAMPIONSHIP  •  15 CHALLENGE  •  ITTF PRO ARENA', this.width / 2, barrierY + 21);
+    this.ctx.restore();
+
+    // 7. Olympic Taraflex Tournament Floor (Rubber Mat & Court Perspective)
+    const floorY = barrierY + barrierH;
+    const floorGrad = this.ctx.createLinearGradient(0, floorY, 0, this.height);
+    if (theme === 'neon') {
+      floorGrad.addColorStop(0, '#040b17');
+      floorGrad.addColorStop(1, '#061326');
+    } else if (theme === 'cyber') {
+      floorGrad.addColorStop(0, '#0d041c');
+      floorGrad.addColorStop(1, '#1b0838');
+    } else if (theme === 'lava') {
+      floorGrad.addColorStop(0, '#130404');
+      floorGrad.addColorStop(1, '#240808');
+    } else {
+      // Official Olympic Red/Navy Taraflex Floor
+      floorGrad.addColorStop(0, '#081324');
+      floorGrad.addColorStop(0.4, '#0e223d');
+      floorGrad.addColorStop(1, '#060d1b');
+    }
+    this.ctx.fillStyle = floorGrad;
+    this.ctx.fillRect(0, floorY, this.width, this.height - floorY);
+
+    // Court boundary lines in perspective
+    this.ctx.save();
+    this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+    this.ctx.lineWidth = 1.5;
     const floorSteps = 12;
     for (let i = -floorSteps; i <= floorSteps; i++) {
-      const p1 = this.project3D(i * 90, -110, -120);
-      const p2 = this.project3D(i * 120, -110, this.tableL + 250);
+      const p1 = this.project3D(i * 110, -110, -120);
+      const p2 = this.project3D(i * 140, -110, this.tableL + 250);
       if (p1.visible && p2.visible) {
         this.ctx.beginPath();
         this.ctx.moveTo(p1.x, p1.y);
@@ -1351,7 +1556,7 @@ class TableTennisGame {
     this.ctx.restore();
   }
 
-  // Render Realistic Table Tennis Paddle in 3D
+  // Render Hyper-Realistic Table Tennis Paddle in 3D
   renderTableTennisPaddle(x, y, z, isPlayer, isForehand, swingProgress, customColor, customAccent) {
     const p = this.project3D(x, y, z);
     if (!p.visible) return;
@@ -1365,43 +1570,122 @@ class TableTennisGame {
     this.ctx.translate(p.x, p.y);
 
     // Natural racket tilt angle based on forehand vs backhand and swing
-    const tilt = isForehand ? -0.25 - swingProgress * 0.35 : 0.25 + swingProgress * 0.35;
+    const tilt = isForehand ? -0.22 - swingProgress * 0.35 : 0.22 + swingProgress * 0.35;
     this.ctx.rotate(tilt);
 
-    // 1. Wooden Handle
-    const handleW = w * 0.26;
-    const handleH = h * 0.55;
-    this.ctx.fillStyle = '#b45309'; // natural wood handle
-    this.roundRect(this.ctx, -handleW / 2, h * 0.35, handleW, handleH, 3, true);
+    // 1. Forearm & Athlete Hand Grip (Immersion for Player in foreground)
+    if (isPlayer) {
+      this.ctx.save();
+      // Athletic Wrist Sweatband
+      this.ctx.fillStyle = customColor || '#00f2fe';
+      this.ctx.shadowColor = customAccent || 'rgba(0, 242, 254, 0.4)';
+      this.ctx.shadowBlur = 10;
+      this.roundRect(this.ctx, -w * 0.22, h * 0.82, w * 0.44, h * 0.38, 8, true);
 
-    // Handle Grip Stripe
-    this.ctx.fillStyle = '#fde68a';
-    this.ctx.fillRect(-handleW / 2 + 2, h * 0.42, handleW - 4, handleH * 0.7);
+      // Sweatband center stripe
+      this.ctx.fillStyle = '#ffffff';
+      this.ctx.fillRect(-w * 0.22, h * 0.95, w * 0.44, 4);
 
-    // 2. Oval Racket Blade & Sponge Rubber
-    // Red rubber on forehand side, Black rubber on backhand side (official rule)
-    const rubberColor = customColor || (isForehand ? '#dc2626' : '#111827');
+      // Athlete Wrist / Forearm
+      this.ctx.fillStyle = '#d4a373';
+      this.roundRect(this.ctx, -w * 0.18, h * 1.15, w * 0.36, h * 0.6, 6, true);
 
-    this.ctx.shadowColor = customAccent || 'rgba(0,0,0,0.5)';
-    this.ctx.shadowBlur = 12;
+      // Hand Holding the Flared Handle (Shakehand grip fingers)
+      this.ctx.fillStyle = '#e0a96d';
+      this.ctx.beginPath();
+      this.ctx.arc(0, h * 0.65, w * 0.22, 0, Math.PI * 2);
+      this.ctx.fill();
+      this.ctx.restore();
+    }
 
-    // Wooden bevel edge around rubber
-    this.ctx.fillStyle = '#d97706';
+    // 2. Wooden Handle (Contoured Flared FL Grip with Two-Tone Grain)
+    const handleW = w * 0.3;
+    const handleH = h * 0.6;
+    const handleY = h * 0.32;
+
+    // Handle Outer Mahogany Wings
+    const woodGrad = this.ctx.createLinearGradient(-handleW / 2, 0, handleW / 2, 0);
+    woodGrad.addColorStop(0, '#582f0e');
+    woodGrad.addColorStop(0.2, '#7f4f24');
+    woodGrad.addColorStop(0.5, '#936639');
+    woodGrad.addColorStop(0.8, '#7f4f24');
+    woodGrad.addColorStop(1, '#582f0e');
+
+    this.ctx.fillStyle = woodGrad;
+    this.roundRect(this.ctx, -handleW / 2, handleY, handleW, handleH, 5, true);
+
+    // Handle Center Birch Inlay Racing Stripe
+    this.ctx.fillStyle = '#ede0d4';
+    this.ctx.fillRect(-handleW * 0.15, handleY + 4, handleW * 0.3, handleH - 8);
+
+    // Handle Lens Medallion / Metallic Brand Badge
+    this.ctx.fillStyle = '#ffd700';
+    this.ctx.shadowColor = '#ffd700';
+    this.ctx.shadowBlur = 6;
     this.ctx.beginPath();
-    this.ctx.ellipse(0, 0, w / 2 + 2, h / 2 + 2, 0, 0, Math.PI * 2);
+    this.ctx.ellipse(0, handleY + handleH * 0.72, handleW * 0.22, handleW * 0.16, 0, 0, Math.PI * 2);
+    this.ctx.fill();
+    this.ctx.shadowBlur = 0;
+
+    // 3. 3D Blade Edge Rim (5-ply Multi-layer Plywood Core)
+    const rimThickness = 4 * p.scale;
+    // Core dark carbon / walnut layer
+    this.ctx.fillStyle = '#331800';
+    this.ctx.beginPath();
+    this.ctx.ellipse(0, 0, w / 2 + rimThickness, h / 2 + rimThickness, 0, 0, Math.PI * 2);
     this.ctx.fill();
 
-    // Main Pimpled/Inverted Rubber Face
-    this.ctx.fillStyle = rubberColor;
+    // Outer birch wood veneer layer
+    this.ctx.fillStyle = '#c68b59';
+    this.ctx.beginPath();
+    this.ctx.ellipse(0, 0, w / 2 + rimThickness * 0.6, h / 2 + rimThickness * 0.6, 0, 0, Math.PI * 2);
+    this.ctx.fill();
+
+    // 4. ITTF Protective Fabric Edge Tape
+    this.ctx.strokeStyle = '#000000';
+    this.ctx.lineWidth = rimThickness * 0.5;
+    this.ctx.beginPath();
+    this.ctx.ellipse(0, 0, w / 2 + rimThickness * 0.75, h / 2 + rimThickness * 0.75, 0, 0, Math.PI * 2);
+    this.ctx.stroke();
+
+    // 5. High-Tension Sponge & Inverted Rubber Face
+    // Professional ITTF Color Rule: Front face uses equipped color, Back uses black/contrast
+    const rubberColor = customColor || (isForehand ? '#dc2626' : '#0f172a');
+
+    // Outer Aura Glow from equipped item
+    if (customAccent) {
+      this.ctx.shadowColor = customAccent;
+      this.ctx.shadowBlur = isPlayer ? 18 : 8;
+    }
+
+    // High-Tension Grippy Rubber Radial Sheen
+    const rubberGrad = this.ctx.createRadialGradient(-w * 0.15, -h * 0.18, w * 0.1, 0, 0, w * 0.65);
+    rubberGrad.addColorStop(0, '#ffffff');
+    rubberGrad.addColorStop(0.2, rubberColor);
+    rubberGrad.addColorStop(0.85, rubberColor);
+    rubberGrad.addColorStop(1, '#1e0000');
+
+    this.ctx.fillStyle = rubberGrad;
     this.ctx.beginPath();
     this.ctx.ellipse(0, 0, w / 2, h / 2, 0, 0, Math.PI * 2);
     this.ctx.fill();
 
-    // Specular rubber sheen
-    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.18)';
+    // Specular Highlight Arc on Rubber Curve
+    this.ctx.save();
+    this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+    this.ctx.lineWidth = 3 * p.scale;
     this.ctx.beginPath();
-    this.ctx.ellipse(-w * 0.15, -h * 0.15, w * 0.25, h * 0.25, 0, 0, Math.PI * 2);
-    this.ctx.fill();
+    this.ctx.ellipse(-w * 0.1, -h * 0.12, w * 0.32, h * 0.32, 0, -Math.PI * 0.7, -Math.PI * 0.2);
+    this.ctx.stroke();
+    this.ctx.restore();
+
+    // Embossed ITTF Approval Seal at base of rubber
+    this.ctx.save();
+    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+    this.ctx.font = `700 ${Math.max(6, Math.floor(7 * p.scale))}px "Rajdhani", sans-serif`;
+    this.ctx.textAlign = 'center';
+    this.ctx.fillText('ITTF 29-008', 0, h * 0.28);
+    this.ctx.restore();
 
     this.ctx.restore();
   }
@@ -1423,7 +1707,58 @@ class TableTennisGame {
     );
   }
 
+  // Render Opponent AI Athlete Character + Paddle across the table
   renderAiRacket() {
+    const p = this.project3D(this.ai.x, this.ai.y, this.ai.z);
+    if (!p.visible) return;
+
+    // Draw Opponent Athlete Body in 3D Perspective!
+    this.ctx.save();
+    this.ctx.translate(p.x, p.y + 45 * p.scale);
+
+    // Jersey Color adapting to Phase progression
+    const phaseColors = [
+      '#2563eb', '#0284c7', '#0d9488', '#059669', '#16a34a',
+      '#ca8a04', '#ea580c', '#dc2626', '#e11d48', '#9333ea',
+      '#7c3aed', '#4f46e5', '#db2777', '#f43f5e', '#ffd700'
+    ];
+    const jerseyColor = phaseColors[Math.min(14, this.currentPhase - 1)] || '#2563eb';
+
+    const athleteScale = p.scale * 1.35;
+
+    // Athlete Torso / Jersey
+    this.ctx.fillStyle = jerseyColor;
+    this.ctx.beginPath();
+    this.ctx.roundRect
+      ? this.ctx.roundRect(-24 * athleteScale, -10 * athleteScale, 48 * athleteScale, 55 * athleteScale, 8 * athleteScale)
+      : this.ctx.rect(-24 * athleteScale, -10 * athleteScale, 48 * athleteScale, 55 * athleteScale);
+    this.ctx.fill();
+
+    // Team Collar & Number
+    this.ctx.fillStyle = '#ffffff';
+    this.ctx.fillRect(-8 * athleteScale, -10 * athleteScale, 16 * athleteScale, 6 * athleteScale);
+    this.ctx.font = `800 ${Math.max(8, 14 * athleteScale)}px "Orbitron", sans-serif`;
+    this.ctx.textAlign = 'center';
+    this.ctx.fillText(String(this.currentPhase), 0, 24 * athleteScale);
+
+    // Athlete Neck & Head
+    this.ctx.fillStyle = '#d4a373';
+    this.ctx.fillRect(-6 * athleteScale, -18 * athleteScale, 12 * athleteScale, 10 * athleteScale);
+    this.ctx.beginPath();
+    this.ctx.arc(0, -28 * athleteScale, 14 * athleteScale, 0, Math.PI * 2);
+    this.ctx.fill();
+
+    // Hair / Headband
+    this.ctx.fillStyle = '#0f172a';
+    this.ctx.beginPath();
+    this.ctx.arc(0, -32 * athleteScale, 13 * athleteScale, Math.PI, Math.PI * 2);
+    this.ctx.fill();
+    this.ctx.fillStyle = '#00f2fe';
+    this.ctx.fillRect(-14 * athleteScale, -30 * athleteScale, 28 * athleteScale, 3 * athleteScale);
+
+    this.ctx.restore();
+
+    // Draw Opponent's Table Tennis Paddle held in hand
     this.renderTableTennisPaddle(
       this.ai.x,
       this.ai.y,
@@ -1432,7 +1767,7 @@ class TableTennisGame {
       this.ai.isForehand,
       this.ai.swingProgress,
       '#ef4444',
-      'rgba(239, 68, 68, 0.6)'
+      'rgba(239, 68, 68, 0.7)'
     );
   }
 
@@ -1463,6 +1798,50 @@ class TableTennisGame {
   }
 
   renderOverlays() {
+    // 1. In-Canvas Broadcast Scoreboard Graphic (guaranteed visibility at all times, including fullscreen)
+    this.ctx.save();
+    const bannerW = 460;
+    const bannerH = 42;
+    const bannerX = this.width / 2 - bannerW / 2;
+    const bannerY = 16;
+
+    // Broadcast Pill Background
+    this.ctx.fillStyle = 'rgba(7, 14, 28, 0.88)';
+    this.ctx.shadowColor = 'rgba(0, 242, 254, 0.4)';
+    this.ctx.shadowBlur = 12;
+    this.roundRect(this.ctx, bannerX, bannerY, bannerW, bannerH, 10, true);
+
+    // Pill Cyan Border
+    this.ctx.strokeStyle = 'rgba(0, 242, 254, 0.55)';
+    this.ctx.lineWidth = 1.5;
+    this.roundRect(this.ctx, bannerX, bannerY, bannerW, bannerH, 10, false, true);
+
+    // Phase Tag on Left
+    this.ctx.fillStyle = '#00f2fe';
+    this.ctx.font = '700 12px "Orbitron", sans-serif';
+    this.ctx.textAlign = 'left';
+    this.ctx.fillText(`FASE ${this.currentPhase}`, bannerX + 16, bannerY + 26);
+
+    // Score in Center
+    this.ctx.textAlign = 'center';
+    this.ctx.font = '900 18px "Orbitron", sans-serif';
+    this.ctx.fillStyle = '#ffffff';
+    this.ctx.shadowColor = '#00f2fe';
+    this.ctx.shadowBlur = 8;
+    this.ctx.fillText(`VOCÊ  ${this.playerScore}  ×  ${this.aiScore}  ADV`, this.width / 2, bannerY + 27);
+
+    // Rule or Status Notice
+    this.ctx.textAlign = 'right';
+    this.ctx.font = '700 10px "Rajdhani", sans-serif';
+    if (this.playerScore >= 11 && this.aiScore >= 11) {
+      this.ctx.fillStyle = '#ffd166';
+      this.ctx.fillText('DEUCE (+2)', bannerX + bannerW - 16, bannerY + 26);
+    } else {
+      this.ctx.fillStyle = '#94a3b8';
+      this.ctx.fillText('12 PTS • +2 LEAD', bannerX + bannerW - 16, bannerY + 26);
+    }
+    this.ctx.restore();
+
     // Service state indicator at bottom
     if (this.servicePhase === 'ready') {
       this.ctx.save();
@@ -1483,7 +1862,7 @@ class TableTennisGame {
     // Pause Overlay
     if (this.isPaused) {
       this.ctx.save();
-      this.ctx.fillStyle = 'rgba(5, 11, 20, 0.8)';
+      this.ctx.fillStyle = 'rgba(5, 11, 20, 0.85)';
       this.ctx.fillRect(0, 0, this.width, this.height);
 
       this.ctx.textAlign = 'center';
@@ -1495,9 +1874,14 @@ class TableTennisGame {
 
       this.ctx.font = '600 18px "Rajdhani", sans-serif';
       this.ctx.fillStyle = '#ffffff';
-      this.ctx.fillText('Pressione [ESPAÇO] para despausar', this.width / 2, this.height / 2 + 45);
+      this.ctx.fillText('Pressione [ESPAÇO] ou o botão de pausa para continuar', this.width / 2, this.height / 2 + 45);
       this.ctx.restore();
     }
+  }
+
+  onResize() {
+    this.canvas.width = this.width;
+    this.canvas.height = this.height;
   }
 
   roundRect(ctx, x, y, width, height, radius = 5, fill = true, stroke = false) {

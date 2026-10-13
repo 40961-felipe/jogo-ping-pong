@@ -3187,3 +3187,197 @@ body {
   border-color: #4285f4;
   outline: none;
 }
+
+/* ========================================================
+   FULLSCREEN MODE STYLES (SCOREBOARD ALWAYS VISIBLE)
+   ======================================================== */
+.game-view-wrapper:fullscreen,
+.game-view-wrapper:-webkit-full-screen,
+.game-view-wrapper.is-fullscreen {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: 100vw !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  background: #020408 !important;
+  z-index: 999999 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
+  overflow: hidden !important;
+}
+
+.game-view-wrapper:fullscreen .canvas-responsive-container,
+.game-view-wrapper:-webkit-full-screen .canvas-responsive-container,
+.game-view-wrapper.is-fullscreen .canvas-responsive-container {
+  width: 100% !important;
+  height: 100% !important;
+  flex: 1 1 auto !important;
+  aspect-ratio: auto !important;
+  border-radius: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+  position: relative !important;
+}
+
+.game-view-wrapper:fullscreen #pingPongCanvas,
+.game-view-wrapper:-webkit-full-screen #pingPongCanvas,
+.game-view-wrapper.is-fullscreen #pingPongCanvas {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+}
+
+/* Scoreboard HUD in Fullscreen - Floating pinned at top center with ultra high clarity */
+.game-view-wrapper:fullscreen .game-hud,
+.game-view-wrapper:-webkit-full-screen .game-hud,
+.game-view-wrapper.is-fullscreen .game-hud {
+  position: absolute !important;
+  top: 16px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  width: 90% !important;
+  max-width: 1050px !important;
+  z-index: 1000 !important;
+  background: rgba(7, 14, 28, 0.92) !important;
+  backdrop-filter: blur(20px) !important;
+  border: 1.5px solid rgba(0, 242, 254, 0.6) !important;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.9), 0 0 35px rgba(0, 242, 254, 0.35) !important;
+  border-radius: 16px !important;
+  padding: 0.8rem 1.6rem !important;
+  pointer-events: auto !important;
+}
+
+.game-view-wrapper:fullscreen .hud-scoreboard,
+.game-view-wrapper:-webkit-full-screen .hud-scoreboard,
+.game-view-wrapper.is-fullscreen .hud-scoreboard {
+  padding: 0.3rem 1.8rem !important;
+  background: rgba(0, 0, 0, 0.65) !important;
+  border-radius: 12px !important;
+  border: 1px solid rgba(0, 242, 254, 0.3) !important;
+}
+
+.game-view-wrapper:fullscreen .score-number,
+.game-view-wrapper:-webkit-full-screen .score-number,
+.game-view-wrapper.is-fullscreen .score-number {
+  font-size: 2.5rem !important;
+}
+
+.game-view-wrapper:fullscreen .game-bottom-bar,
+.game-view-wrapper:-webkit-full-screen .game-bottom-bar,
+.game-view-wrapper.is-fullscreen .game-bottom-bar {
+  position: absolute !important;
+  bottom: 14px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  width: 88% !important;
+  max-width: 900px !important;
+  z-index: 1000 !important;
+  background: rgba(7, 14, 28, 0.85) !important;
+  backdrop-filter: blur(16px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.8) !important;
+  border-radius: 14px !important;
+  padding: 0.6rem 1.4rem !important;
+  pointer-events: auto !important;
+}
+
+/* ========================================================
+   ADMIN INLINE BALANCE EDITOR & DUAL MODE MODAL
+   ======================================================== */
+.adm-inline-balance-box {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 0.25rem 0.5rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  width: fit-content;
+}
+
+.adm-coin-icon {
+  font-size: 1rem;
+}
+
+.adm-inline-coins-input {
+  width: 90px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(0, 242, 254, 0.3);
+  border-radius: 6px;
+  color: #ffd700;
+  font-family: var(--font-gamer);
+  font-size: 0.95rem;
+  font-weight: 700;
+  padding: 0.25rem 0.4rem;
+  text-align: right;
+  transition: var(--transition-smooth);
+}
+
+.adm-inline-coins-input:focus {
+  outline: none;
+  border-color: #00f2fe;
+  background: rgba(0, 242, 254, 0.15);
+  box-shadow: 0 0 10px rgba(0, 242, 254, 0.4);
+}
+
+.btn-adm-save-balance {
+  background: linear-gradient(135deg, #00b4d8 0%, #0077b6 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  font-family: var(--font-accent);
+  font-weight: 700;
+  font-size: 0.75rem;
+  padding: 0.35rem 0.6rem;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  white-space: nowrap;
+}
+
+.btn-adm-save-balance:hover {
+  background: linear-gradient(135deg, #00f2fe 0%, #00b4d8 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 0 12px rgba(0, 242, 254, 0.5);
+}
+
+/* Modal Mode Selector (Set vs Add) */
+.admin-mode-selector {
+  display: flex;
+  gap: 0.6rem;
+  margin-top: 0.4rem;
+  margin-bottom: 0.5rem;
+}
+
+.btn-adm-mode {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  color: #cbd5e1;
+  font-family: var(--font-accent);
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 0.6rem 0.8rem;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+
+.btn-adm-mode:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+.btn-adm-mode.active {
+  background: rgba(0, 242, 254, 0.2);
+  border-color: #00f2fe;
+  color: #00f2fe;
+  font-weight: 700;
+  box-shadow: 0 0 14px rgba(0, 242, 254, 0.3);
+}

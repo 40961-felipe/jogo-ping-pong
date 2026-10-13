@@ -487,6 +487,66 @@ class UIManager {
         }
       });
     }
+
+    // Fullscreen Toggle Button and Keyboard [F] listener
+    const fullscreenBtn = document.getElementById('btnFullscreen');
+    if (fullscreenBtn) {
+      fullscreenBtn.addEventListener('click', () => {
+        this.toggleFullscreen();
+      });
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if ((e.code === 'KeyF' || e.key === 'f') && window.location.hash.includes('jogo') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        const active = document.activeElement;
+        if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return;
+        e.preventDefault();
+        this.toggleFullscreen();
+      }
+    });
+
+    document.addEventListener('fullscreenchange', () => this.handleFullscreenChange());
+    document.addEventListener('webkitfullscreenchange', () => this.handleFullscreenChange());
+  }
+
+  toggleFullscreen() {
+    const wrapper = document.querySelector('.game-view-wrapper');
+    if (!wrapper) return;
+
+    const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement || wrapper.classList.contains('is-fullscreen'));
+
+    if (!isFs) {
+      if (wrapper.requestFullscreen) {
+        wrapper.requestFullscreen().catch(() => {
+          wrapper.classList.add('is-fullscreen');
+          this.handleFullscreenChange();
+        });
+      } else if (wrapper.webkitRequestFullscreen) {
+        wrapper.webkitRequestFullscreen();
+      } else {
+        wrapper.classList.add('is-fullscreen');
+        this.handleFullscreenChange();
+      }
+    } else {
+      if (document.exitFullscreen && (document.fullscreenElement || document.webkitFullscreenElement)) {
+        document.exitFullscreen().catch(() => {});
+      }
+      wrapper.classList.remove('is-fullscreen');
+      this.handleFullscreenChange();
+    }
+  }
+
+  handleFullscreenChange() {
+    const wrapper = document.querySelector('.game-view-wrapper');
+    const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement || wrapper?.classList.contains('is-fullscreen'));
+    const btn = document.getElementById('btnFullscreen');
+    if (btn) {
+      btn.innerHTML = isFs ? '🗗 Sair Tela Cheia' : '⛶ Tela Cheia';
+      btn.title = isFs ? 'Sair da Tela Cheia [ESC ou F]' : 'Alternar Tela Cheia [F]';
+    }
+    if (this.gameInstance && typeof this.gameInstance.onResize === 'function') {
+      this.gameInstance.onResize();
+    }
   }
 
   // --- RANKING PAGE RENDERING ---
@@ -498,28 +558,39 @@ class UIManager {
     const podiumContainer = document.getElementById('rankingPodium');
     if (podiumContainer) {
       podiumContainer.innerHTML = '';
-      const top3 = list.slice(0, 3);
-      const podiumOrder = [top3[1], top3[0], top3[2]].filter(Boolean);
-
-      podiumOrder.forEach((player) => {
-        if (!player) return;
-        const realRank = list.findIndex((p) => p.id === player.id) + 1;
-        const rankClass = realRank === 1 ? 'rank-gold' : realRank === 2 ? 'rank-silver' : 'rank-bronze';
-        const medalIcon = realRank === 1 ? '🥇' : realRank === 2 ? '🥈' : '🥉';
-
-        const card = document.createElement('div');
-        card.className = `podium-card ${rankClass}`;
-        card.innerHTML = `
-          <div class="podium-medal">${medalIcon}</div>
-          <img src="${player.avatar}" alt="${player.name}" class="podium-avatar">
-          <div class="podium-name">${player.name}</div>
-          <div class="podium-username">@${player.username}</div>
-          <div class="podium-phase">Fase Máxima: <strong>${player.maxPhase}/15</strong></div>
-          <div class="podium-score">🪙 ${player.score.toLocaleString('pt-BR')} pts</div>
-          <div class="podium-meta"><small>⏱️ ${player.totalTime}s • 🎯 ${player.attempts} tentativas</small></div>
+      if (list.length === 0) {
+        podiumContainer.innerHTML = `
+          <div class="podium-empty-card glass-panel" style="grid-column: 1 / -1; width: 100%; text-align: center; padding: 48px 24px; border-radius: 16px; border: 1px dashed rgba(255, 255, 255, 0.2); background: rgba(18, 24, 38, 0.6);">
+            <div style="font-size: 3.5rem; margin-bottom: 12px; filter: drop-shadow(0 0 16px rgba(0, 242, 254, 0.5));">🏆</div>
+            <h3 style="font-size: 1.4rem; font-weight: 700; color: #fff; margin-bottom: 8px;">Ranking Aguardando Jogadores</h3>
+            <p style="color: var(--text-muted); font-size: 0.95rem; max-width: 500px; margin: 0 auto 20px auto;">O ranking exibe apenas jogadores cadastrados. Cadastre-se e dispute as 15 fases para liderar a tabela global!</p>
+            <button class="btn-primary" onclick="window.location.hash='game'">JOGAR AGORA</button>
+          </div>
         `;
-        podiumContainer.appendChild(card);
-      });
+      } else {
+        const top3 = list.slice(0, 3);
+        const podiumOrder = top3.length === 1 ? [top3[0]] : top3.length === 2 ? [top3[0], top3[1]] : [top3[1], top3[0], top3[2]].filter(Boolean);
+
+        podiumOrder.forEach((player) => {
+          if (!player) return;
+          const realRank = list.findIndex((p) => p.id === player.id) + 1;
+          const rankClass = realRank === 1 ? 'rank-gold' : realRank === 2 ? 'rank-silver' : 'rank-bronze';
+          const medalIcon = realRank === 1 ? '🥇' : realRank === 2 ? '🥈' : '🥉';
+
+          const card = document.createElement('div');
+          card.className = `podium-card ${rankClass}`;
+          card.innerHTML = `
+            <div class="podium-medal">${medalIcon}</div>
+            <img src="${player.avatar}" alt="${player.name}" class="podium-avatar">
+            <div class="podium-name">${player.name}</div>
+            <div class="podium-username">@${player.username}</div>
+            <div class="podium-phase">Fase Máxima: <strong>${player.maxPhase}/15</strong></div>
+            <div class="podium-score">🪙 ${player.score.toLocaleString('pt-BR')} pts</div>
+            <div class="podium-meta"><small>⏱️ ${player.totalTime}s • 🎯 ${player.attempts} tentativas</small></div>
+          `;
+          podiumContainer.appendChild(card);
+        });
+      }
     }
 
     // Ranking Table
@@ -527,31 +598,43 @@ class UIManager {
     if (tableBody) {
       tableBody.innerHTML = '';
 
-      list.forEach((player, idx) => {
-        const rank = idx + 1;
-        const isSelf = user && player.id === user.id;
-
-        const row = document.createElement('tr');
-        row.className = `${isSelf ? 'user-highlight-row' : ''} ${rank <= 3 ? 'top-3-row' : ''}`;
-        row.innerHTML = `
-          <td class="col-rank">#${rank}</td>
-          <td class="col-player">
-            <div class="player-cell">
-              <img src="${player.avatar}" class="table-avatar" alt="Avatar">
-              <div>
-                <span class="player-name">${player.name} ${isSelf ? '<strong>(Você)</strong>' : ''}</span>
-                <span class="player-user">@${player.username}</span>
-              </div>
-            </div>
-          </td>
-          <td class="col-phase"><span class="badge-phase">Fase ${player.maxPhase}</span></td>
-          <td class="col-score"><strong>${player.score.toLocaleString('pt-BR')}</strong></td>
-          <td class="col-time">${player.totalTime}s</td>
-          <td class="col-attempts">${player.attempts}</td>
-          <td class="col-date">${player.date}</td>
+      if (list.length === 0) {
+        tableBody.innerHTML = `
+          <tr>
+            <td colspan="7" class="empty-state-cell" style="text-align: center; padding: 48px 20px; color: var(--text-muted);">
+              <div style="font-size: 2.2rem; margin-bottom: 10px;">📭</div>
+              <p style="font-size: 1.05rem; font-weight: 600; color: #fff; margin-bottom: 6px;">Nenhum jogador classificado no momento</p>
+              <span style="font-size: 0.9rem; opacity: 0.85;">Cadastre sua conta ou entre em uma partida para ser registrado no ranking!</span>
+            </td>
+          </tr>
         `;
-        tableBody.appendChild(row);
-      });
+      } else {
+        list.forEach((player, idx) => {
+          const rank = idx + 1;
+          const isSelf = user && player.id === user.id;
+
+          const row = document.createElement('tr');
+          row.className = `${isSelf ? 'user-highlight-row' : ''} ${rank <= 3 ? 'top-3-row' : ''}`;
+          row.innerHTML = `
+            <td class="col-rank">#${rank}</td>
+            <td class="col-player">
+              <div class="player-cell">
+                <img src="${player.avatar}" class="table-avatar" alt="Avatar">
+                <div>
+                  <span class="player-name">${player.name} ${isSelf ? '<strong>(Você)</strong>' : ''}</span>
+                  <span class="player-user">@${player.username}</span>
+                </div>
+              </div>
+            </td>
+            <td class="col-phase"><span class="badge-phase">Fase ${player.maxPhase}</span></td>
+            <td class="col-score"><strong>${player.score.toLocaleString('pt-BR')}</strong></td>
+            <td class="col-time">${player.totalTime}s</td>
+            <td class="col-attempts">${player.attempts}</td>
+            <td class="col-date">${player.date}</td>
+          `;
+          tableBody.appendChild(row);
+        });
+      }
     }
   }
 
@@ -762,6 +845,30 @@ class UIManager {
       });
     }
 
+    // Modal Add/Set Coins Mode Switching
+    this.coinModalMode = 'set';
+    const btnModeSet = document.getElementById('btnModeSetCoins');
+    const btnModeAdd = document.getElementById('btnModeAddCoins');
+    const groupSet = document.getElementById('groupSetBalance');
+    const groupAdd = document.getElementById('groupAddBalance');
+
+    if (btnModeSet && btnModeAdd) {
+      btnModeSet.onclick = () => {
+        this.coinModalMode = 'set';
+        btnModeSet.classList.add('active');
+        btnModeAdd.classList.remove('active');
+        if (groupSet) groupSet.style.display = 'block';
+        if (groupAdd) groupAdd.style.display = 'none';
+      };
+      btnModeAdd.onclick = () => {
+        this.coinModalMode = 'add';
+        btnModeAdd.classList.add('active');
+        btnModeSet.classList.remove('active');
+        if (groupSet) groupSet.style.display = 'none';
+        if (groupAdd) groupAdd.style.display = 'block';
+      };
+    }
+
     const addCoinsForm = document.getElementById('formAddCoins');
     if (addCoinsForm) {
       addCoinsForm.addEventListener('submit', (e) => {
@@ -888,12 +995,18 @@ class UIManager {
         <td>${u.email}</td>
         <td><span class="user-role-badge badge-${u.role.toLowerCase()}">${u.role}</span></td>
         <td><span class="badge-phase">Fase ${u.highest_phase || 0}</span></td>
-        <td>🪙 ${(u.coins || 0).toLocaleString('pt-BR')}</td>
+        <td>
+          <div class="adm-inline-balance-box">
+            <span class="adm-coin-icon">🪙</span>
+            <input type="number" class="adm-inline-coins-input" data-user-id="${u.id}" value="${u.coins || 0}" min="0" max="9999999" title="Digite para alterar o saldo deste usuário">
+            <button class="btn-adm-save-balance" data-user-id="${u.id}" title="Salvar Saldo">💾 Salvar</button>
+          </div>
+        </td>
         <td><span class="status-pill status-${u.status.toLowerCase()}">${u.status}</span></td>
         <td>${new Date(u.created_at).toLocaleDateString()}</td>
         <td class="col-actions">
           <button class="btn-adm-action btn-adm-view" data-id="${u.id}">VER</button>
-          <button class="btn-adm-action btn-adm-coins" data-id="${u.id}" title="Adicionar Moedas">🪙 MOEDAS</button>
+          <button class="btn-adm-action btn-adm-coins" data-id="${u.id}" title="Adicionar ou Definir Moedas">🪙 SALDO</button>
           ${
             isSelf
               ? ''
@@ -919,6 +1032,56 @@ class UIManager {
     tbody.querySelectorAll('.btn-adm-unban').forEach((b) => {
       b.onclick = (e) => this.openUnbanModal(e.currentTarget.dataset.id);
     });
+
+    // Inline direct balance typing and saving
+    tbody.querySelectorAll('.btn-adm-save-balance').forEach((btn) => {
+      btn.onclick = (e) => {
+        const userId = e.currentTarget.dataset.userId;
+        const input = tbody.querySelector(`.adm-inline-coins-input[data-user-id="${userId}"]`);
+        if (!input) return;
+        const newCoins = parseInt(input.value, 10);
+        this.saveUserCoinsDirect(userId, newCoins);
+      };
+    });
+
+    tbody.querySelectorAll('.adm-inline-coins-input').forEach((input) => {
+      input.onkeydown = (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const userId = input.dataset.userId;
+          const newCoins = parseInt(input.value, 10);
+          this.saveUserCoinsDirect(userId, newCoins);
+        }
+      };
+    });
+  }
+
+  saveUserCoinsDirect(targetUserId, newCoins) {
+    const adminUser = window.storageEngine.getCurrentUser();
+    if (!adminUser || adminUser.role !== 'ADMIN') {
+      window.shopManager?.showToast('Apenas administradores podem alterar o saldo.', 'error');
+      return;
+    }
+    if (isNaN(newCoins) || newCoins < 0) {
+      window.shopManager?.showToast('Informe um número de moedas válido e não-negativo.', 'error');
+      return;
+    }
+    try {
+      const res = window.storageEngine.setUserCoins({
+        adminUserId: adminUser.id,
+        targetUserId,
+        newCoins,
+        reason: 'Ajuste manual direto no painel administrativo',
+      });
+      if (window.soundEngine) window.soundEngine.playCoin();
+      window.shopManager?.showToast(`🪙 Saldo de ${res.targetUser.name} definido para ${newCoins.toLocaleString('pt-BR')} moedas!`, 'success');
+      this.updateUserHeader();
+      this.renderAdminUsersTable();
+      this.renderAdminCoinsTable();
+      this.renderAdminDashboardMetrics();
+    } catch (err) {
+      window.shopManager?.showToast(err.message, 'error');
+    }
   }
 
   renderAdminBannedTable() {
@@ -1031,6 +1194,11 @@ class UIManager {
     if (!tbody) return;
 
     tbody.innerHTML = '';
+    if (ranking.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="7" class="empty-state" style="text-align: center; padding: 32px; color: var(--text-muted);">Nenhum usuário cadastrado no ranking global ainda.</td></tr>`;
+      return;
+    }
+
     ranking.forEach((p, idx) => {
       const tr = document.createElement('tr');
       tr.innerHTML = `
@@ -1227,11 +1395,15 @@ class UIManager {
     const currentSelectedId = select.value;
     this.updateTargetUserBalanceDisplay(currentSelectedId);
 
+    const targetUser = window.storageEngine.getUsers().find((u) => u.id === currentSelectedId);
+    const exactInput = document.getElementById('inputExactCoins');
+    if (exactInput) exactInput.value = targetUser ? (targetUser.coins || 0) : '200';
+
     const amountInput = document.getElementById('addCoinsAmount');
     if (amountInput) amountInput.value = '500';
 
     const reasonInput = document.getElementById('addCoinsReason');
-    if (reasonInput) reasonInput.value = 'Bônus Administrativo';
+    if (reasonInput) reasonInput.value = 'Ajuste administrativo';
 
     this.openModal('modalAddCoins');
   }
@@ -1242,30 +1414,53 @@ class UIManager {
     if (balanceEl && user) {
       balanceEl.textContent = `🪙 ${(user.coins || 0).toLocaleString('pt-BR')}`;
     }
+    const exactInput = document.getElementById('inputExactCoins');
+    if (exactInput && user) {
+      exactInput.value = user.coins || 0;
+    }
   }
 
   handleAddCoinsSubmit() {
     const adminUser = window.storageEngine.getCurrentUser();
     const targetUserId = document.getElementById('addCoinsTargetUser').value;
-    const amount = parseInt(document.getElementById('addCoinsAmount').value, 10);
     const reason = document.getElementById('addCoinsReason').value.trim();
 
-    if (!amount || isNaN(amount) || amount <= 0) {
-      window.shopManager?.showToast('Informe uma quantidade de moedas válida e maior que zero.', 'error');
-      return;
-    }
-
     try {
-      const result = window.storageEngine.addCoinsToUser({
-        adminUserId: adminUser.id,
-        targetUserId,
-        amount,
-        reason: reason || 'Concessão de moedas administrativa'
-      });
+      if (this.coinModalMode === 'set') {
+        const exactAmount = parseInt(document.getElementById('inputExactCoins').value, 10);
+        if (isNaN(exactAmount) || exactAmount < 0) {
+          window.shopManager?.showToast('Informe um saldo válido (maior ou igual a zero).', 'error');
+          return;
+        }
 
-      this.closeModal('modalAddCoins');
-      if (window.soundEngine) window.soundEngine.playCoin();
-      window.shopManager?.showToast(`🪙 ${amount.toLocaleString('pt-BR')} moedas concedidas com sucesso para ${result.targetUser.name}!`, 'success');
+        const result = window.storageEngine.setUserCoins({
+          adminUserId: adminUser.id,
+          targetUserId,
+          newCoins: exactAmount,
+          reason: reason || 'Definição manual de saldo pelo Administrador'
+        });
+
+        this.closeModal('modalAddCoins');
+        if (window.soundEngine) window.soundEngine.playCoin();
+        window.shopManager?.showToast(`🪙 Saldo de ${result.targetUser.name} definido para ${exactAmount.toLocaleString('pt-BR')} moedas!`, 'success');
+      } else {
+        const amount = parseInt(document.getElementById('addCoinsAmount').value, 10);
+        if (!amount || isNaN(amount) || amount <= 0) {
+          window.shopManager?.showToast('Informe uma quantidade de moedas válida e maior que zero.', 'error');
+          return;
+        }
+
+        const result = window.storageEngine.addCoinsToUser({
+          adminUserId: adminUser.id,
+          targetUserId,
+          amount,
+          reason: reason || 'Concessão de moedas administrativa'
+        });
+
+        this.closeModal('modalAddCoins');
+        if (window.soundEngine) window.soundEngine.playCoin();
+        window.shopManager?.showToast(`🪙 ${amount.toLocaleString('pt-BR')} moedas concedidas com sucesso para ${result.targetUser.name}!`, 'success');
+      }
 
       this.updateUserHeader();
       this.renderAdminUsersTable();
