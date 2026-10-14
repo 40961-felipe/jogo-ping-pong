@@ -61,10 +61,13 @@
             <span id="headerUserName" class="user-chip-name">Jogador</span>
             <span id="headerUserRoleBadge" class="user-role-badge">USER</span>
           </div>
+          <button id="headerBtnGuestSave" class="btn-save-progress-chip" style="display:none;" onclick="event.stopPropagation(); window.location.hash='cadastro';" title="Salvar progresso criando uma conta">💾 Salvar</button>
         </div>
 
         <!-- Auth Links (shown when logged out) -->
         <div id="headerAuthLinks" class="auth-links" style="display:none;">
+          <button id="headerBtnGuest" class="btn-auth-guest" title="Jogue imediatamente sem cadastro (progresso não é salvo)">🎮 Convidado</button>
+          <button id="headerBtnGoogle" class="btn-auth-google" title="Entrar com conta Google">🌐 Google</button>
           <button class="btn-auth-link" onclick="window.location.hash='login'">Entrar</button>
           <button class="btn-auth-primary" onclick="window.location.hash='cadastro'">Cadastrar</button>
         </div>
@@ -97,6 +100,20 @@
             <button class="btn-secondary btn-lg" onclick="window.location.hash='loja'">
               <span class="btn-icon">🛒</span> LOJA DE ITENS
             </button>
+          </div>
+
+          <!-- Unauthenticated / Guest Welcome Quick Banner -->
+          <div id="dashGuestOrUnauthBanner" class="dash-quick-auth-banner glass-panel" style="display:none;">
+            <div class="dash-qa-text">
+              <span class="qa-badge" id="qaBadge">MODO CONVIDADO</span>
+              <strong id="qaTitle">Jogue sem compromisso ou entre com sua conta</strong>
+              <small id="qaSubtitle">No modo convidado, seu progresso é temporário e não é salvo no ranking.</small>
+            </div>
+            <div class="dash-qa-actions">
+              <button type="button" id="dashBtnGuest" class="btn-guest-chip">🎮 Jogar como Convidado</button>
+              <button type="button" id="dashBtnGoogle" class="btn-google-chip">🌐 Entrar com Google</button>
+              <button type="button" id="dashBtnLogin" class="btn-login-chip" onclick="window.location.hash='login'">🔑 Entrar</button>
+            </div>
           </div>
         </div>
 
@@ -179,6 +196,7 @@
           </div>
 
           <div class="hud-actions">
+            <button id="btnToggleBottomBar" class="btn-hud-icon" title="Ocultar/Exibir Menu Inferior [H]">👁️ Menu Inferior</button>
             <button id="btnFullscreen" class="btn-hud-icon" title="Alternar Tela Cheia [F]">⛶ Tela Cheia</button>
             <button id="btnInGamePause" class="btn-hud-icon" title="Pausar Partida [ESPAÇO]">⏸️</button>
             <button id="btnInGameLeave" class="btn-hud-icon" title="Sair da Partida">🚪</button>
@@ -188,10 +206,25 @@
         <!-- Ping Pong Canvas Arena Container -->
         <div class="canvas-responsive-container">
           <canvas id="pingPongCanvas"></canvas>
+
+          <!-- In-Canvas Fullscreen Victory Banner (Allows proceeding to next phase immediately in fullscreen) -->
+          <div id="fullscreenVictoryBanner" class="fs-victory-banner" style="display:none;">
+            <div class="fs-vic-content glass-panel">
+              <div class="fs-vic-trophy">🏆</div>
+              <div class="fs-vic-info">
+                <span class="fs-vic-badge">VITÓRIA!</span>
+                <h3 id="fsVicTitle" class="fs-vic-title">FASE 1 CONCLUÍDA!</h3>
+                <p id="fsVicSub" class="fs-vic-sub">Placar: 12 × 5 • Sequência: 1 fase</p>
+                <div class="fs-vic-coins" id="fsVicCoins">+🪙 10 Moedas</div>
+              </div>
+              <button id="btnFsNextPhase" class="btn-primary-glow btn-lg fs-vic-btn">PRÓXIMA FASE ➔ [ENTER]</button>
+            </div>
+          </div>
         </div>
 
         <!-- In-Game Skills Hotbar & Controls helper -->
-        <div class="game-bottom-bar glass-panel">
+        <div id="gameBottomBar" class="game-bottom-bar glass-panel">
+          <button id="btnCollapseBottomBar" class="btn-bottom-bar-collapse" title="Ocultar menu inferior">⌄ Ocultar Menu</button>
           <div class="skills-hotbar-container">
             <span class="hotbar-title">HABILIDADES EQUIPADAS:</span>
             <div id="inGameSkillsHotbar" class="skills-slots-row">
@@ -204,13 +237,96 @@
             <span>⌨️ <strong>Teclas</strong>: [W / S] ou [↑ / ↓]</span>
             <span>⚡ <strong>Habilidades</strong>: [1], [2], [3]</span>
             <span>⏸️ <strong>Pausar</strong>: [ESPAÇO]</span>
+            <span>👁️ <strong>Ocultar Menu</strong>: [H]</span>
           </div>
         </div>
+
+        <!-- Floating Restore Button when Bottom Bar is hidden -->
+        <button id="btnRestoreBottomBar" class="btn-bottom-bar-restore" style="display:none;" title="Restaurar Menu Inferior [H]">⌃ Mostrar Menu Inferior</button>
 
         <!-- Mobile Touch Helper Buttons (visible on touch screens) -->
         <div class="mobile-touch-controls">
           <button id="touchBtnPaddleUp" class="touch-ctrl-btn">▲</button>
           <button id="touchBtnPaddleDown" class="touch-ctrl-btn">▼</button>
+        </div>
+
+        <!-- 2. VICTORY MODAL ("FASE CONCLUÍDA!") - Positioned inside game-view-wrapper for full-screen availability -->
+        <div id="victoryModal" class="modal-backdrop">
+          <div class="modal-card modal-victory glass-panel">
+            <div class="victory-header-animation">
+              <div class="trophy-bounce">🏆</div>
+              <h2 class="victory-title" id="vicTitleText">FASE CONCLUÍDA!</h2>
+              <span class="victory-subtitle" id="vicPhaseDone">Fase 1 Concluída!</span>
+            </div>
+
+            <!-- Match Score Badge -->
+            <div class="match-score-badge-box">
+              <span class="ms-label">Placar da Partida:</span>
+              <span id="vicMatchScore" class="ms-value">12 × 10</span>
+            </div>
+
+            <!-- Elite Achievement Container (Only shown when beating Phase 15) -->
+            <div id="vicEliteBanner" style="display:none;"></div>
+
+            <div class="victory-stats-box">
+              <div class="v-stat-row">
+                <span>Tempo de Partida:</span>
+                <strong id="vicDuration">24s</strong>
+              </div>
+              <div class="v-stat-row">
+                <span>Sequência sem Derrotas:</span>
+                <strong id="vicStreak" class="highlight-green">1 fase</strong>
+              </div>
+              <div class="v-stat-row">
+                <span>Próxima Fase:</span>
+                <strong id="vicNextPhase" class="highlight-gold">Fase 2</strong>
+              </div>
+            </div>
+
+            <!-- Animated Coin Reward Block -->
+            <div class="coin-reward-announcement">
+              <span class="reward-title">RECOMPENSA CONCEDIDA:</span>
+              <div class="reward-coins-amount" id="vicRewardCoins">+🪙 10</div>
+              <div class="reward-bonus-announcement" id="vicBonusCoins" style="display:none;"></div>
+              <div class="wallet-balance-note">Saldo atual: <strong id="vicTotalCoins">🪙 210</strong></div>
+            </div>
+
+            <button id="btnNextPhase" class="btn-primary-glow btn-lg btn-block">PRÓXIMA FASE ➔ [ENTER]</button>
+          </div>
+        </div>
+
+        <!-- 3. DEFEAT MODAL ("VOCÊ PERDEU!") - Positioned inside game-view-wrapper for full-screen availability -->
+        <div id="defeatModal" class="modal-backdrop">
+          <div class="modal-card modal-defeat glass-panel">
+            <div class="defeat-header-animation">
+              <div class="skull-pulse">❌</div>
+              <h2 class="defeat-title">VOCÊ PERDEU!</h2>
+              <span class="defeat-subtitle" id="defPhaseFailed">Eliminado na Fase 1</span>
+            </div>
+
+            <!-- Defeat Match Score Badge -->
+            <div class="match-score-badge-box defeat-ms">
+              <span class="ms-label">Placar Final:</span>
+              <span id="defMatchScore" class="ms-value">10 × 12</span>
+            </div>
+
+            <p class="defeat-notice">
+              Sua sequência foi encerrada e você foi eliminado desta tentativa.
+              Moedas conquistadas nesta fase: <strong>+0 moedas</strong>.
+              Suas moedas acumuladas continuam salvas no seu perfil!
+            </p>
+
+            <div class="defeat-stats-box">
+              <div class="v-stat-row">
+                <span>Sequência Alcançada:</span>
+                <strong id="defStreak" class="highlight-gold">0 fases</strong>
+              </div>
+            </div>
+
+            <button id="btnRetryChallenge" class="btn-primary-glow btn-lg btn-block">
+              NOVA TENTATIVA (FASE 1) ↺
+            </button>
+          </div>
         </div>
       </div>
     </section>
@@ -492,8 +608,28 @@
           <div class="auth-brand">
             <span class="auth-icon">🏓</span>
             <h2>ENTRAR NO JOGO</h2>
-            <p>Acesse seu perfil e continue sua escalada nas 15 fases</p>
+            <p>Acesse seu perfil ou jogue como convidado</p>
           </div>
+
+          <!-- Quick Guest Access Option -->
+          <div class="guest-play-card">
+            <button type="button" id="btnGuestLogin" class="btn-guest-play-main">
+              <span class="guest-play-icon">🎮</span>
+              <div class="guest-play-details">
+                <strong>JOGAR COMO CONVIDADO</strong>
+                <small>Entrar direto sem login (o progresso não será salvo)</small>
+              </div>
+            </button>
+          </div>
+
+          <div class="auth-divider"><span>OU ACESSE COM GOOGLE</span></div>
+
+          <button type="button" id="btnGoogleLogin" class="btn-google-oauth">
+            <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.7l3.1-3.1C17.3 1.8 14.8 1 12 1 7.4 1 3.5 3.6 1.6 7.3l3.7 2.9C6.2 7.3 8.9 5 12 5z"/><path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.6h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.9z"/><path fill="#FBBC05" d="M5.3 14.8c-.2-.7-.4-1.5-.4-2.3 0-.8.1-1.6.4-2.3L1.6 7.3C.6 9.3 0 10.6 0 12.5s.6 3.2 1.6 5.2l3.7-2.9z"/><path fill="#34A853" d="M12 24c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3.1 0-5.8-2.3-6.7-5.2L1.6 17c1.9 3.7 5.8 7 10.4 7z"/></svg>
+            ENTRAR COM GOOGLE
+          </button>
+
+          <div class="auth-divider"><span>OU ENTRE COM E-MAIL E SENHA</span></div>
 
           <form id="formLogin" class="auth-form">
             <div id="loginError" class="auth-error-msg"></div>
@@ -508,15 +644,8 @@
               <input type="password" id="loginPass" required placeholder="••••••••">
             </div>
 
-            <button type="submit" class="btn-primary-glow btn-block">ENTRAR</button>
+            <button type="submit" class="btn-primary-glow btn-block">ENTRAR COM E-MAIL</button>
           </form>
-
-          <div class="auth-divider"><span>OU</span></div>
-
-          <button id="btnGoogleLogin" class="btn-google-oauth">
-            <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.7l3.1-3.1C17.3 1.8 14.8 1 12 1 7.4 1 3.5 3.6 1.6 7.3l3.7 2.9C6.2 7.3 8.9 5 12 5z"/><path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.6h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.9z"/><path fill="#FBBC05" d="M5.3 14.8c-.2-.7-.4-1.5-.4-2.3 0-.8.1-1.6.4-2.3L1.6 7.3C.6 9.3 0 10.6 0 12.5s.6 3.2 1.6 5.2l3.7-2.9z"/><path fill="#34A853" d="M12 24c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3.1 0-5.8-2.3-6.7-5.2L1.6 17c1.9 3.7 5.8 7 10.4 7z"/></svg>
-            ENTRAR COM GOOGLE
-          </button>
 
           <div class="auth-footer-text">
             Não tem uma conta? <a href="#cadastro">CRIAR CONTA</a>
@@ -626,6 +755,16 @@
           <button id="btnGoogleRegister" class="btn-google-oauth">
             <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.7l3.1-3.1C17.3 1.8 14.8 1 12 1 7.4 1 3.5 3.6 1.6 7.3l3.7 2.9C6.2 7.3 8.9 5 12 5z"/><path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.6h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.9z"/><path fill="#FBBC05" d="M5.3 14.8c-.2-.7-.4-1.5-.4-2.3 0-.8.1-1.6.4-2.3L1.6 7.3C.6 9.3 0 10.6 0 12.5s.6 3.2 1.6 5.2l3.7-2.9z"/><path fill="#34A853" d="M12 24c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3.1 0-5.8-2.3-6.7-5.2L1.6 17c1.9 3.7 5.8 7 10.4 7z"/></svg>
             CADASTRAR COM O GOOGLE
+          </button>
+
+          <div class="auth-divider"><span>OU JOGUE SEM CADASTRO</span></div>
+
+          <button type="button" id="btnGuestRegister" class="btn-guest-play-main">
+            <span class="guest-play-icon">🎮</span>
+            <div class="guest-play-details">
+              <strong>JOGAR COMO CONVIDADO</strong>
+              <small>Jogue agora sem cadastro (o progresso não é salvo)</small>
+            </div>
           </button>
 
           <div class="auth-footer-text">
@@ -1042,84 +1181,7 @@
     </div>
   </div>
 
-  <!-- 2. VICTORY MODAL ("FASE CONCLUÍDA!") -->
-  <div id="victoryModal" class="modal-backdrop">
-    <div class="modal-card modal-victory glass-panel">
-      <div class="victory-header-animation">
-        <div class="trophy-bounce">🏆</div>
-        <h2 class="victory-title" id="vicTitleText">FASE CONCLUÍDA!</h2>
-        <span class="victory-subtitle" id="vicPhaseDone">Fase 1 Concluída!</span>
-      </div>
 
-      <!-- Match Score Badge -->
-      <div class="match-score-badge-box">
-        <span class="ms-label">Placar da Partida:</span>
-        <span id="vicMatchScore" class="ms-value">12 × 10</span>
-      </div>
-
-      <!-- Elite Achievement Container (Only shown when beating Phase 15) -->
-      <div id="vicEliteBanner" style="display:none;"></div>
-
-      <div class="victory-stats-box">
-        <div class="v-stat-row">
-          <span>Tempo de Partida:</span>
-          <strong id="vicDuration">24s</strong>
-        </div>
-        <div class="v-stat-row">
-          <span>Sequência sem Derrotas:</span>
-          <strong id="vicStreak" class="highlight-green">1 fase</strong>
-        </div>
-        <div class="v-stat-row">
-          <span>Próxima Fase:</span>
-          <strong id="vicNextPhase" class="highlight-gold">Fase 2</strong>
-        </div>
-      </div>
-
-      <!-- Animated Coin Reward Block -->
-      <div class="coin-reward-announcement">
-        <span class="reward-title">RECOMPENSA CONCEDIDA:</span>
-        <div class="reward-coins-amount" id="vicRewardCoins">+🪙 10</div>
-        <div class="reward-bonus-announcement" id="vicBonusCoins" style="display:none;"></div>
-        <div class="wallet-balance-note">Saldo atual: <strong id="vicTotalCoins">🪙 210</strong></div>
-      </div>
-
-      <button id="btnNextPhase" class="btn-primary-glow btn-lg btn-block">PRÓXIMA FASE ➔</button>
-    </div>
-  </div>
-
-  <!-- 3. DEFEAT MODAL ("VOCÊ PERDEU!") -->
-  <div id="defeatModal" class="modal-backdrop">
-    <div class="modal-card modal-defeat glass-panel">
-      <div class="defeat-header-animation">
-        <div class="skull-pulse">❌</div>
-        <h2 class="defeat-title">VOCÊ PERDEU!</h2>
-        <span class="defeat-subtitle" id="defPhaseFailed">Eliminado na Fase 1</span>
-      </div>
-
-      <!-- Defeat Match Score Badge -->
-      <div class="match-score-badge-box defeat-ms">
-        <span class="ms-label">Placar Final:</span>
-        <span id="defMatchScore" class="ms-value">10 × 12</span>
-      </div>
-
-      <p class="defeat-notice">
-        Sua sequência foi encerrada e você foi eliminado desta tentativa.
-        Moedas conquistadas nesta fase: <strong>+0 moedas</strong>.
-        Suas moedas acumuladas continuam salvas no seu perfil!
-      </p>
-
-      <div class="defeat-stats-box">
-        <div class="v-stat-row">
-          <span>Sequência Alcançada:</span>
-          <strong id="defStreak" class="highlight-gold">0 fases</strong>
-        </div>
-      </div>
-
-      <button id="btnRetryChallenge" class="btn-primary-glow btn-lg btn-block">
-        NOVA TENTATIVA (FASE 1) ↺
-      </button>
-    </div>
-  </div>
 
   <!-- 4. ADMIN: BAN USER MODAL -->
   <div id="modalBanUser" class="modal-backdrop">

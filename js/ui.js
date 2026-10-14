@@ -42,13 +42,22 @@ class UIManager {
     const authLinks = document.getElementById('headerAuthLinks');
     const userMenu = document.getElementById('headerUserMenu');
     const navAdmin = document.getElementById('navLinkAdmin');
+    const btnGuestSave = document.getElementById('headerBtnGuestSave');
 
     if (user) {
-      if (nameEl) nameEl.textContent = user.name;
+      if (nameEl) nameEl.textContent = user.isGuest ? 'Convidado' : user.name;
       if (avatarEl) avatarEl.src = user.avatar_url;
       if (roleBadge) {
-        roleBadge.textContent = user.role;
-        roleBadge.className = `user-role-badge badge-${user.role.toLowerCase()}`;
+        if (user.isGuest) {
+          roleBadge.textContent = 'CONVIDADO (SEM SALVAR)';
+          roleBadge.className = 'user-role-badge badge-guest';
+        } else {
+          roleBadge.textContent = user.role;
+          roleBadge.className = `user-role-badge badge-${user.role.toLowerCase()}`;
+        }
+      }
+      if (btnGuestSave) {
+        btnGuestSave.style.display = user.isGuest ? 'inline-flex' : 'none';
       }
       if (coinsEl) coinsEl.textContent = (user.coins || 0).toLocaleString('pt-BR');
       if (authLinks) authLinks.style.display = 'none';
@@ -61,6 +70,7 @@ class UIManager {
     } else {
       if (authLinks) authLinks.style.display = 'flex';
       if (userMenu) userMenu.style.display = 'none';
+      if (btnGuestSave) btnGuestSave.style.display = 'none';
       if (coinsEl) coinsEl.textContent = '0';
       if (navAdmin) navAdmin.style.display = 'none';
     }
@@ -185,18 +195,48 @@ class UIManager {
   // --- DASHBOARD / HOME ---
   renderDashboard() {
     const user = window.storageEngine.getCurrentUser();
-    if (!user) return;
-
+    const banner = document.getElementById('dashGuestOrUnauthBanner');
     const welcomeEl = document.getElementById('dashWelcomeName');
     const bestPhaseEl = document.getElementById('dashRecordPhase');
     const bestScoreEl = document.getElementById('dashRecordScore');
     const globalRankEl = document.getElementById('dashGlobalRank');
 
+    if (!user) {
+      if (banner) {
+        banner.style.display = 'flex';
+        const qaBadge = document.getElementById('qaBadge');
+        const qaTitle = document.getElementById('qaTitle');
+        const qaSubtitle = document.getElementById('qaSubtitle');
+        if (qaBadge) qaBadge.textContent = 'VISITANTE / SEM LOGIN';
+        if (qaTitle) qaTitle.textContent = 'Escolha como deseja jogar no Table Tennis 15';
+        if (qaSubtitle) qaSubtitle.textContent = 'Jogue como Convidado sem cadastro (sem salvar) ou entre com sua conta Google!';
+      }
+      if (welcomeEl) welcomeEl.textContent = 'Visitante';
+      if (bestPhaseEl) bestPhaseEl.textContent = 'Fase 1';
+      if (bestScoreEl) bestScoreEl.textContent = '0';
+      if (globalRankEl) globalRankEl.textContent = '#--';
+      return;
+    }
+
+    if (user.isGuest) {
+      if (banner) {
+        banner.style.display = 'flex';
+        const qaBadge = document.getElementById('qaBadge');
+        const qaTitle = document.getElementById('qaTitle');
+        const qaSubtitle = document.getElementById('qaSubtitle');
+        if (qaBadge) qaBadge.textContent = 'MODO CONVIDADO (SEM SALVAR)';
+        if (qaTitle) qaTitle.textContent = 'Você está jogando como Convidado';
+        if (qaSubtitle) qaSubtitle.textContent = 'O progresso e moedas desta sessão não serão salvos no ranking global permanente.';
+      }
+    } else {
+      if (banner) banner.style.display = 'none';
+    }
+
     if (welcomeEl) welcomeEl.textContent = user.name;
     if (bestPhaseEl) bestPhaseEl.textContent = user.highest_phase ? `Fase ${user.highest_phase}` : 'Fase 1';
     if (bestScoreEl) bestScoreEl.textContent = (user.highest_score || 0).toLocaleString('pt-BR');
 
-    const rankPos = window.storageEngine.getUserRankPosition(user.id);
+    const rankPos = user.isGuest ? '--' : window.storageEngine.getUserRankPosition(user.id);
     if (globalRankEl) globalRankEl.textContent = `#${rankPos}`;
 
     const roadmapContainer = document.getElementById('dashRoadmapStrip');
@@ -228,11 +268,24 @@ class UIManager {
 
   // --- GAME VIEW & CONTROLLER ---
   initGameView() {
-    const user = window.storageEngine.getCurrentUser();
+    let user = window.storageEngine.getCurrentUser();
     if (user && (user.status === 'BANNED' || user.status === 'SUSPENDED')) {
       window.location.hash = 'banned';
       return;
     }
+
+    // If visitor accesses the game without being logged in, default to Guest Mode (never admin!)
+    if (!user) {
+      user = window.storageEngine.loginAsGuest();
+      this.updateUserHeader();
+      window.shopManager?.showToast('🎮 Iniciando no Modo Convidado! O progresso desta sessão não será salvo.', 'info');
+    }
+
+    // Apply bottom bar saved state preference
+    try {
+      const isHidden = localStorage.getItem('pingpong_hide_bottom_bar') === 'true';
+      this.toggleBottomBar(isHidden);
+    } catch (e) {}
 
     if (!this.gameInstance) {
       const GameClass = window.TableTennisGame || window.PingPongGame;
@@ -374,29 +427,68 @@ class UIManager {
       this.updateUserHeader();
 
       const modal = document.getElementById('victoryModal');
-      if (!modal) return;
+      const fsBanner = document.getElementById('fullscreenVictoryBanner');
 
-      document.getElementById('vicPhaseDone').textContent = `Fase ${phase} Concluída!`;
-      document.getElementById('vicMatchScore').textContent = `${playerScore} × ${opponentScore}`;
-      document.getElementById('vicDuration').textContent = `${duration}s`;
-      document.getElementById('vicStreak').textContent = `${victoryData.currentStreak} fases`;
-      document.getElementById('vicNextPhase').textContent = victoryData.completedAll
-        ? '🏆 TODAS AS FASES CONCLUÍDAS!'
-        : `Fase ${victoryData.nextPhase}`;
-
-      document.getElementById('vicRewardCoins').textContent = `+🪙 ${victoryData.earnedCoins}`;
-      const bonusEl = document.getElementById('vicBonusCoins');
-      if (victoryData.bonusCoins > 0) {
-        bonusEl.style.display = 'block';
-        bonusEl.textContent = `🎉 BÔNUS SEQUÊNCIA: +🪙 ${victoryData.bonusCoins}!`;
-      } else {
-        bonusEl.style.display = 'none';
+      if (document.getElementById('vicPhaseDone')) {
+        document.getElementById('vicPhaseDone').textContent = `Fase ${phase} Concluída!`;
+      }
+      if (document.getElementById('vicMatchScore')) {
+        document.getElementById('vicMatchScore').textContent = `${playerScore} × ${opponentScore}`;
+      }
+      if (document.getElementById('vicDuration')) {
+        document.getElementById('vicDuration').textContent = `${duration}s`;
+      }
+      if (document.getElementById('vicStreak')) {
+        document.getElementById('vicStreak').textContent = `${victoryData.currentStreak} fases`;
+      }
+      if (document.getElementById('vicNextPhase')) {
+        document.getElementById('vicNextPhase').textContent = victoryData.completedAll
+          ? '🏆 TODAS AS FASES CONCLUÍDAS!'
+          : `Fase ${victoryData.nextPhase}`;
+      }
+      if (document.getElementById('vicRewardCoins')) {
+        document.getElementById('vicRewardCoins').textContent = `+🪙 ${victoryData.earnedCoins}`;
       }
 
-      document.getElementById('vicTotalCoins').textContent = `🪙 ${victoryData.newCoins.toLocaleString('pt-BR')}`;
+      const bonusEl = document.getElementById('vicBonusCoins');
+      if (bonusEl) {
+        if (victoryData.bonusCoins > 0) {
+          bonusEl.style.display = 'block';
+          bonusEl.textContent = `🎉 BÔNUS SEQUÊNCIA: +🪙 ${victoryData.bonusCoins}!`;
+        } else {
+          bonusEl.style.display = 'none';
+        }
+      }
+
+      if (document.getElementById('vicTotalCoins')) {
+        document.getElementById('vicTotalCoins').textContent = `🪙 ${victoryData.newCoins.toLocaleString('pt-BR')}`;
+      }
+
+      // Next phase advancement function (works seamlessly in both normal and fullscreen modes!)
+      const advanceToNextPhase = () => {
+        if (modal) modal.classList.remove('active');
+        if (fsBanner) fsBanner.style.display = 'none';
+        this.currentAdvanceCallback = null;
+
+        if (victoryData.completedAll) {
+          window.location.hash = 'ranking';
+          return;
+        }
+
+        const nextPhase = victoryData.nextPhase;
+        this.renderInGameHUD(nextPhase);
+        if (this.gameInstance) {
+          this.gameInstance.startMatch(nextPhase);
+        }
+      };
+
+      this.currentAdvanceCallback = advanceToNextPhase;
 
       // Rule 24: Phase 15 Final Challenge Victory Special Celebration
       const eliteBanner = document.getElementById('vicEliteBanner');
+      const btnNext = document.getElementById('btnNextPhase');
+      const btnFsNext = document.getElementById('btnFsNextPhase');
+
       if (victoryData.completedAll) {
         if (eliteBanner) {
           eliteBanner.style.display = 'block';
@@ -412,27 +504,44 @@ class UIManager {
             </div>
           `;
         }
-        document.getElementById('vicTitleText').textContent = '🏆 VITÓRIA SUPREMA!';
-        const btnNext = document.getElementById('btnNextPhase');
-        btnNext.textContent = 'VER MEU RANKING';
-        btnNext.onclick = () => {
-          modal.classList.remove('active');
-          window.location.hash = 'ranking';
-        };
+        if (document.getElementById('vicTitleText')) {
+          document.getElementById('vicTitleText').textContent = '🏆 VITÓRIA SUPREMA!';
+        }
+        if (btnNext) {
+          btnNext.textContent = 'VER MEU RANKING ➔';
+          btnNext.onclick = advanceToNextPhase;
+        }
+        if (btnFsNext) {
+          btnFsNext.textContent = 'VER MEU RANKING ➔';
+          btnFsNext.onclick = advanceToNextPhase;
+        }
       } else {
         if (eliteBanner) eliteBanner.style.display = 'none';
-        document.getElementById('vicTitleText').textContent = 'FASE CONCLUÍDA!';
-        const btnNext = document.getElementById('btnNextPhase');
-        btnNext.textContent = 'PRÓXIMA FASE ➔';
-        btnNext.onclick = () => {
-          modal.classList.remove('active');
-          const nextPhase = victoryData.nextPhase;
-          this.renderInGameHUD(nextPhase);
-          this.gameInstance.startMatch(nextPhase);
-        };
+        if (document.getElementById('vicTitleText')) {
+          document.getElementById('vicTitleText').textContent = 'FASE CONCLUÍDA!';
+        }
+        if (btnNext) {
+          btnNext.textContent = 'PRÓXIMA FASE ➔ [ENTER]';
+          btnNext.onclick = advanceToNextPhase;
+        }
+        if (btnFsNext) {
+          btnFsNext.textContent = 'PRÓXIMA FASE ➔ [ENTER]';
+          btnFsNext.onclick = advanceToNextPhase;
+        }
       }
 
-      modal.classList.add('active');
+      // Configure In-Canvas Fullscreen Overlay
+      if (fsBanner) {
+        const fsTitle = document.getElementById('fsVicTitle');
+        const fsSub = document.getElementById('fsVicSub');
+        const fsCoins = document.getElementById('fsVicCoins');
+        if (fsTitle) fsTitle.textContent = `FASE ${phase} CONCLUÍDA!`;
+        if (fsSub) fsSub.textContent = `Placar: ${playerScore} × ${opponentScore} • Sequência: ${victoryData.currentStreak} fase(s)`;
+        if (fsCoins) fsCoins.textContent = `+🪙 ${victoryData.totalAwarded} Moedas Conquistadas`;
+        fsBanner.style.display = 'flex';
+      }
+
+      if (modal) modal.classList.add('active');
     } catch (err) {
       window.shopManager?.showToast(err.message, 'error');
     }
@@ -444,6 +553,10 @@ class UIManager {
       this.updateUserHeader();
 
       const modal = document.getElementById('defeatModal');
+      const fsBanner = document.getElementById('fullscreenVictoryBanner');
+      if (fsBanner) fsBanner.style.display = 'none';
+      this.currentAdvanceCallback = null;
+
       if (!modal) return;
 
       document.getElementById('defPhaseFailed').textContent = `Eliminado na Fase ${phase}`;
@@ -453,6 +566,33 @@ class UIManager {
       modal.classList.add('active');
     } catch (err) {
       window.shopManager?.showToast(err.message, 'error');
+    }
+  }
+
+  // Toggle/hide in-game bottom bar ("ocultar o menu inferior")
+  toggleBottomBar(forceState = null) {
+    const bottomBar = document.getElementById('gameBottomBar');
+    const restoreBtn = document.getElementById('btnRestoreBottomBar');
+    const toggleBtn = document.getElementById('btnToggleBottomBar');
+    if (!bottomBar) return;
+
+    const shouldHide = forceState !== null ? forceState : !bottomBar.classList.contains('is-hidden');
+    bottomBar.classList.toggle('is-hidden', shouldHide);
+
+    if (restoreBtn) {
+      restoreBtn.style.display = shouldHide ? 'flex' : 'none';
+    }
+    if (toggleBtn) {
+      toggleBtn.innerHTML = shouldHide ? '👁️‍🗨️ Exibir Menu' : '👁️ Menu Inferior';
+      toggleBtn.title = shouldHide ? 'Exibir Menu Inferior [H]' : 'Ocultar Menu Inferior [H]';
+    }
+
+    try {
+      localStorage.setItem('pingpong_hide_bottom_bar', shouldHide ? 'true' : 'false');
+    } catch (e) {}
+
+    if (this.gameInstance && typeof this.gameInstance.onResize === 'function') {
+      setTimeout(() => this.gameInstance.onResize(), 60);
     }
   }
 
@@ -488,6 +628,22 @@ class UIManager {
       });
     }
 
+    // Toggle Bottom Bar button handlers
+    const btnToggleBottom = document.getElementById('btnToggleBottomBar');
+    if (btnToggleBottom) {
+      btnToggleBottom.addEventListener('click', () => this.toggleBottomBar());
+    }
+
+    const btnCollapseBottom = document.getElementById('btnCollapseBottomBar');
+    if (btnCollapseBottom) {
+      btnCollapseBottom.addEventListener('click', () => this.toggleBottomBar(true));
+    }
+
+    const btnRestoreBottom = document.getElementById('btnRestoreBottomBar');
+    if (btnRestoreBottom) {
+      btnRestoreBottom.addEventListener('click', () => this.toggleBottomBar(false));
+    }
+
     // Fullscreen Toggle Button and Keyboard [F] listener
     const fullscreenBtn = document.getElementById('btnFullscreen');
     if (fullscreenBtn) {
@@ -497,11 +653,31 @@ class UIManager {
     }
 
     window.addEventListener('keydown', (e) => {
+      const active = document.activeElement;
+      if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return;
+
+      // [F] Toggle Fullscreen
       if ((e.code === 'KeyF' || e.key === 'f') && window.location.hash.includes('jogo') && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        const active = document.activeElement;
-        if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return;
         e.preventDefault();
         this.toggleFullscreen();
+      }
+
+      // [H] Toggle Bottom Menu / Bar
+      if ((e.code === 'KeyH' || e.key === 'h') && window.location.hash.includes('jogo') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        e.preventDefault();
+        this.toggleBottomBar();
+      }
+
+      // [Enter] or [Space] to advance to next phase in victory modal/fullscreen banner
+      if ((e.code === 'Enter' || e.code === 'NumpadEnter') && this.currentAdvanceCallback) {
+        const modal = document.getElementById('victoryModal');
+        const fsBanner = document.getElementById('fullscreenVictoryBanner');
+        if ((modal && modal.classList.contains('active')) || (fsBanner && fsBanner.style.display === 'flex')) {
+          e.preventDefault();
+          const cb = this.currentAdvanceCallback;
+          this.currentAdvanceCallback = null;
+          cb();
+        }
       }
     });
 
@@ -1541,6 +1717,25 @@ class UIManager {
     const openGoogleModal = () => {
       this.openModal('modalGoogleAuth');
     };
+
+    // 2. Guest Login Handlers
+    const handleGuestPlay = () => {
+      const guest = window.storageEngine.loginAsGuest();
+      this.updateUserHeader();
+      window.location.hash = 'jogo';
+      if (window.soundEngine) window.soundEngine.playClick();
+      window.shopManager?.showToast('🎮 Modo Convidado ativado! O progresso desta sessão não será salvo.', 'info');
+    };
+
+    ['btnGuestLogin', 'btnGuestRegister', 'headerBtnGuest', 'dashBtnGuest'].forEach((id) => {
+      const btn = document.getElementById(id);
+      if (btn) btn.addEventListener('click', handleGuestPlay);
+    });
+
+    ['headerBtnGoogle', 'dashBtnGoogle'].forEach((id) => {
+      const btn = document.getElementById(id);
+      if (btn) btn.addEventListener('click', openGoogleModal);
+    });
 
     const btnGoogleLogin = document.getElementById('btnGoogleLogin');
     if (btnGoogleLogin) {

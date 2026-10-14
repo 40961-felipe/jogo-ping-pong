@@ -549,7 +549,12 @@ class StorageEngine {
       };
 
       this.saveUsers([admin1, admin2, normalUser, bannedUser]);
-      this.setCurrentUser(admin1.id);
+      // NOTE: Do not auto-login as admin on fresh visit. User must choose guest, Google, or login!
+      // If legacy auto-login assigned admin1 without user consent, clear it
+      if (currentId === admin1.id && localStorage.getItem('pingpong_explicit_login') !== 'true') {
+        localStorage.removeItem(STORAGE_KEYS.CURRENT_USER_ID);
+        currentId = null;
+      }
 
       this.recordTransaction(admin1.id, 10000, 'initial_bonus', '🪙 Moedas de Administrador');
       this.recordTransaction(admin2.id, 10000, 'initial_bonus', '🪙 Moedas de Administrador');
@@ -617,8 +622,10 @@ class StorageEngine {
 
       this.saveUsers(users);
 
-      if (!currentId || !users.some((u) => u.id === currentId)) {
-        this.setCurrentUser(users[0].id);
+      // Clear legacy auto-login into admin if not explicitly logged in by user
+      if (currentId === 'usr_adm_raphael' && localStorage.getItem('pingpong_explicit_login') !== 'true') {
+        localStorage.removeItem(STORAGE_KEYS.CURRENT_USER_ID);
+        currentId = null;
       }
     }
   }
@@ -636,9 +643,59 @@ class StorageEngine {
     localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
   }
 
+  // Login as Guest (Visitor) - Progress is transient and NOT saved to database
+  loginAsGuest() {
+    const guestUser = {
+      id: 'usr_guest',
+      name: 'Convidado (Visitante)',
+      username: 'convidado',
+      email: '',
+      avatar_url: 'https://api.dicebear.com/7.x/bottts/svg?seed=ConvidadoGamer15',
+      role: 'GUEST',
+      isGuest: true,
+      coins: 50,
+      highest_phase: 1,
+      highest_score: 0,
+      best_time: 0,
+      attempts: 0,
+      wins: 0,
+      losses: 0,
+      status: 'ACTIVE',
+      ban_reason: null,
+      banned_at: null,
+      ban_expires_at: null,
+      banned_by: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      equipped: { racket: 'racket_classic', ball: 'ball_classic', table: 'table_classic', skills: [] },
+      inventory: ['racket_classic', 'ball_classic', 'table_classic'],
+      currentRun: { active: false, phase: 1, score: 0, streak: 0, startTime: null, totalTime: 0 },
+    };
+
+    this.guestUser = guestUser;
+    try {
+      sessionStorage.setItem('pingpong_guest_user', JSON.stringify(guestUser));
+    } catch (e) {}
+    localStorage.removeItem(STORAGE_KEYS.CURRENT_USER_ID);
+    localStorage.removeItem('pingpong_explicit_login');
+    return guestUser;
+  }
+
   getCurrentUser() {
-    const users = this.getUsers();
+    // 1. Check active Guest session (in-memory or sessionStorage)
+    if (this.guestUser) return this.guestUser;
+    try {
+      const savedGuest = sessionStorage.getItem('pingpong_guest_user');
+      if (savedGuest) {
+        this.guestUser = JSON.parse(savedGuest);
+        return this.guestUser;
+      }
+    } catch (e) {}
+
+    // 2. Check registered user in persistent storage
     const id = localStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID);
+    if (!id) return null;
+    const users = this.getUsers();
     const user = users.find((u) => u.id === id) || null;
     if (user) {
       // Check if temporary ban has expired
@@ -648,11 +705,20 @@ class StorageEngine {
   }
 
   setCurrentUser(userId) {
+    this.guestUser = null;
+    try {
+      sessionStorage.removeItem('pingpong_guest_user');
+    } catch (e) {}
     localStorage.setItem(STORAGE_KEYS.CURRENT_USER_ID, userId);
   }
 
   logout() {
+    this.guestUser = null;
+    try {
+      sessionStorage.removeItem('pingpong_guest_user');
+    } catch (e) {}
     localStorage.removeItem(STORAGE_KEYS.CURRENT_USER_ID);
+    localStorage.removeItem('pingpong_explicit_login');
   }
 
   // Check if temporary ban has expired; auto-unban if date passed
@@ -742,6 +808,7 @@ class StorageEngine {
 
     users.push(newUser);
     this.saveUsers(users);
+    localStorage.setItem('pingpong_explicit_login', 'true');
     this.setCurrentUser(newUser.id);
     this.recordTransaction(newUser.id, finalCoins, 'initial_bonus', `🪙 Bônus de boas-vindas ${isAdminEmail ? 'Administrador' : 'ao jogador'}`);
     this.syncUserToGlobalRanking(newUser);
@@ -818,6 +885,7 @@ class StorageEngine {
       throw new Error(`🚫 CONTA SUSPENSA: ${user.ban_reason || 'Violação dos termos de uso do jogo.'}`);
     }
 
+    localStorage.setItem('pingpong_explicit_login', 'true');
     this.setCurrentUser(user.id);
     return user;
   }
@@ -890,11 +958,25 @@ class StorageEngine {
       throw new Error(`🚫 CONTA SUSPENSA: ${user.ban_reason || 'Violação dos termos de uso do jogo.'}`);
     }
 
+    localStorage.setItem('pingpong_explicit_login', 'true');
     this.setCurrentUser(user.id);
     return user;
   }
 
   updateCurrentUser(updaterFn) {
+    const current = this.getCurrentUser();
+    if (!current) return null;
+
+    // For Guest user, update in-memory/session only so progress is NOT saved to permanent storage
+    if (current.isGuest) {
+      this.guestUser = updaterFn({ ...this.guestUser });
+      this.guestUser.updated_at = new Date().toISOString();
+      try {
+        sessionStorage.setItem('pingpong_guest_user', JSON.stringify(this.guestUser));
+      } catch (e) {}
+      return this.guestUser;
+    }
+
     const id = localStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID);
     return this.updateUserById(id, updaterFn);
   }
@@ -1144,6 +1226,7 @@ class StorageEngine {
 
   // --- COIN TRANSACTIONS & ECONOMY ---
   recordTransaction(userId, amount, type, description, phase = null) {
+    if (!userId || userId === 'usr_guest') return null;
     try {
       const list = JSON.parse(localStorage.getItem(STORAGE_KEYS.TRANSACTIONS) || '[]');
       const tx = {
@@ -1348,26 +1431,28 @@ class StorageEngine {
       return u;
     });
 
-    this.recordTransaction(
-      user.id,
-      earnedCoins,
-      'phase_reward',
-      `Vitória na Fase ${phaseNumber} (${playerScore} × ${opponentScore}) (+🪙${earnedCoins})`,
-      phaseNumber
-    );
-
-    if (bonusCoins > 0) {
+    if (!user.isGuest) {
       this.recordTransaction(
         user.id,
-        bonusCoins,
-        'streak_bonus',
-        `Bônus Sequência: ${newStreak} fases consecutivas (+🪙${bonusCoins})`,
+        earnedCoins,
+        'phase_reward',
+        `Vitória na Fase ${phaseNumber} (${playerScore} × ${opponentScore}) (+🪙${earnedCoins})`,
         phaseNumber
       );
-    }
 
-    this.saveMatchResult(user.id, phaseNumber, playerScore, opponentScore, matchPoints, matchDurationSeconds, 'win');
-    this.syncUserToGlobalRanking(updatedUser);
+      if (bonusCoins > 0) {
+        this.recordTransaction(
+          user.id,
+          bonusCoins,
+          'streak_bonus',
+          `Bônus Sequência: ${newStreak} fases consecutivas (+🪙${bonusCoins})`,
+          phaseNumber
+        );
+      }
+
+      this.saveMatchResult(user.id, phaseNumber, playerScore, opponentScore, matchPoints, matchDurationSeconds, 'win');
+      this.syncUserToGlobalRanking(updatedUser);
+    }
 
     return {
       phase: phaseNumber,
@@ -1420,8 +1505,10 @@ class StorageEngine {
       return u;
     });
 
-    this.saveMatchResult(user.id, phaseNumber, playerScore, opponentScore, matchPoints, matchDurationSeconds, 'loss');
-    this.syncUserToGlobalRanking(updatedUser);
+    if (!user.isGuest) {
+      this.saveMatchResult(user.id, phaseNumber, playerScore, opponentScore, matchPoints, matchDurationSeconds, 'loss');
+      this.syncUserToGlobalRanking(updatedUser);
+    }
 
     return {
       failedPhase: phaseNumber,
@@ -1434,6 +1521,7 @@ class StorageEngine {
   }
 
   saveMatchResult(userId, phase, playerScore, opponentScore, matchScore, duration, result) {
+    if (!userId || userId === 'usr_guest') return;
     try {
       const history = JSON.parse(localStorage.getItem(STORAGE_KEYS.MATCH_HISTORY) || '[]');
       const user = this.getUsers().find((u) => u.id === userId);
@@ -1475,10 +1563,10 @@ class StorageEngine {
       list = [];
     }
 
-    // Keep ONLY real registered users (exclude mock bots and banned/suspended users)
+    // Keep ONLY real registered users (exclude mock bots, guests, and banned/suspended users)
     const users = this.getUsers();
     list = list.filter((p) => {
-      if (!p || !p.id) return false;
+      if (!p || !p.id || p.id === 'usr_guest') return false;
       if (p.id.startsWith('bot_') || p.id === 'usr_player_02' || p.id === 'usr_banned_03') return false;
       const userObj = users.find((u) => u.id === p.id);
       if (!userObj || userObj.status === 'BANNED' || userObj.status === 'SUSPENDED') return false;
@@ -1510,7 +1598,7 @@ class StorageEngine {
   }
 
   syncUserToGlobalRanking(user) {
-    if (!user) return;
+    if (!user || user.isGuest || user.id === 'usr_guest') return;
     if (user.id.startsWith('bot_') || user.id === 'usr_player_02' || user.id === 'usr_banned_03') return;
 
     let list = this.getGlobalRanking();

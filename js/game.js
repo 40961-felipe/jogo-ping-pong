@@ -1085,7 +1085,8 @@ class TableTennisGame {
     // 2. Draw 3D Table Tennis Table (legs, surface, lines, specular)
     this.render3DTable();
 
-    // 3. Draw AI Paddle (far side of table)
+    // 3. Draw AI Paddle & Shadow (far side of table)
+    this.renderPaddleShadow(this.ai.x, this.ai.y, this.ai.z, false);
     this.renderAiRacket();
 
     // 4. Draw Official Net in center
@@ -1097,7 +1098,8 @@ class TableTennisGame {
     // 6. Draw 3D Table Tennis Ball & Trail
     this.render3DBall();
 
-    // 7. Draw Player Paddle in foreground
+    // 7. Draw Player Paddle & Shadow in foreground
+    this.renderPaddleShadow(this.player.x, this.player.y, this.player.z, true);
     this.renderPlayerRacket();
 
     // 8. Draw 3D Particles
@@ -1556,6 +1558,65 @@ class TableTennisGame {
     this.ctx.restore();
   }
 
+  // Project dynamic table tennis paddle shadow onto table / floor
+  renderPaddleShadow(x, y, z, isPlayer) {
+    const isOverTable = Math.abs(x) <= this.tableW / 2 + 35 && z >= -40 && z <= this.tableL + 40;
+    const shadowY = isOverTable ? 0 : -105;
+    const pShadow = this.project3D(x, shadowY, z);
+    if (!pShadow.visible) return;
+
+    const heightAboveSurface = Math.max(0, y - shadowY);
+    const alpha = Math.max(0.05, (isPlayer ? 0.42 : 0.30) - heightAboveSurface * 0.0035);
+    const baseW = isPlayer ? this.player.width : this.ai.width;
+    const rx = (baseW * 0.48 + heightAboveSurface * 0.08) * pShadow.scale;
+    const ry = rx * 0.46; // perspective projection tilt on table
+
+    this.ctx.save();
+    this.ctx.fillStyle = `rgba(0, 0, 0, ${alpha})`;
+    this.ctx.beginPath();
+    this.ctx.ellipse(pShadow.x, pShadow.y, rx, ry, isPlayer ? 0.25 : -0.25, 0, Math.PI * 2);
+    this.ctx.fill();
+    this.ctx.restore();
+  }
+
+  // Authentic Table Tennis Blade Head Contour (Realistic Competition Silhouette)
+  drawBladeHeadPath(ctx, w, h) {
+    ctx.beginPath();
+    // Top apex curve
+    ctx.moveTo(0, -h * 0.52);
+    // Right upper dome to sweet spot (widest section at ~40% of height)
+    ctx.bezierCurveTo(w * 0.35, -h * 0.52, w * 0.53, -h * 0.22, w * 0.51, h * 0.06);
+    // Right sweet spot down to blade shoulder
+    ctx.bezierCurveTo(w * 0.48, h * 0.25, w * 0.36, h * 0.38, w * 0.22, h * 0.45);
+    // Right shoulder into handle throat
+    ctx.bezierCurveTo(w * 0.16, h * 0.48, w * 0.14, h * 0.50, w * 0.13, h * 0.53);
+    // Handle neck base line
+    ctx.lineTo(-w * 0.13, h * 0.53);
+    // Left shoulder transition
+    ctx.bezierCurveTo(-w * 0.14, h * 0.50, -w * 0.16, h * 0.48, -w * 0.22, h * 0.45);
+    // Left sweet spot
+    ctx.bezierCurveTo(-w * 0.36, h * 0.38, -w * 0.48, h * 0.25, -w * 0.51, h * 0.06);
+    // Left upper dome
+    ctx.bezierCurveTo(-w * 0.53, -h * 0.22, -w * 0.35, -h * 0.52, 0, -h * 0.52);
+    ctx.closePath();
+  }
+
+  // Authentic Ergonomic Flared (FL) Wooden Handle Path
+  drawFlaredHandlePath(ctx, w, topY, botY) {
+    const topW = w * 0.26;
+    const midW = w * 0.21;
+    const botW = w * 0.31;
+    const midY = topY + (botY - topY) * 0.45;
+
+    ctx.beginPath();
+    ctx.moveTo(-topW / 2, topY);
+    ctx.bezierCurveTo(-midW / 2, midY, -midW / 2, midY + (botY - topY) * 0.25, -botW / 2, botY);
+    // Convex flared bottom butt
+    ctx.bezierCurveTo(-botW / 2, botY + 7, botW / 2, botY + 7, botW / 2, botY);
+    ctx.bezierCurveTo(midW / 2, midY + (botY - topY) * 0.25, midW / 2, midY, topW / 2, topY);
+    ctx.closePath();
+  }
+
   // Render Hyper-Realistic Table Tennis Paddle in 3D
   renderTableTennisPaddle(x, y, z, isPlayer, isForehand, swingProgress, customColor, customAccent) {
     const p = this.project3D(x, y, z);
@@ -1569,123 +1630,253 @@ class TableTennisGame {
     this.ctx.save();
     this.ctx.translate(p.x, p.y);
 
-    // Natural racket tilt angle based on forehand vs backhand and swing
-    const tilt = isForehand ? -0.22 - swingProgress * 0.35 : 0.22 + swingProgress * 0.35;
+    // Natural racket tilt angle based on forehand vs backhand and swing progress
+    const tilt = isForehand ? -0.20 - swingProgress * 0.35 : 0.20 + swingProgress * 0.35;
     this.ctx.rotate(tilt);
 
-    // 1. Forearm & Athlete Hand Grip (Immersion for Player in foreground)
+    const handleTopY = h * 0.46;
+    const handleBotY = h * 1.05;
+    const rimThickness = Math.max(2, 4.5 * p.scale);
+
+    // 1. Forearm & Compression Sweatband (for Player in foreground)
     if (isPlayer) {
       this.ctx.save();
-      // Athletic Wrist Sweatband
-      this.ctx.fillStyle = customColor || '#00f2fe';
-      this.ctx.shadowColor = customAccent || 'rgba(0, 242, 254, 0.4)';
-      this.ctx.shadowBlur = 10;
-      this.roundRect(this.ctx, -w * 0.22, h * 0.82, w * 0.44, h * 0.38, 8, true);
-
-      // Sweatband center stripe
-      this.ctx.fillStyle = '#ffffff';
-      this.ctx.fillRect(-w * 0.22, h * 0.95, w * 0.44, 4);
-
       // Athlete Wrist / Forearm
-      this.ctx.fillStyle = '#d4a373';
-      this.roundRect(this.ctx, -w * 0.18, h * 1.15, w * 0.36, h * 0.6, 6, true);
+      const armGrad = this.ctx.createLinearGradient(-w * 0.18, 0, w * 0.18, 0);
+      armGrad.addColorStop(0, '#be8a58');
+      armGrad.addColorStop(0.35, '#d4a373');
+      armGrad.addColorStop(0.85, '#e0a96d');
+      armGrad.addColorStop(1, '#a67344');
+      this.ctx.fillStyle = armGrad;
+      this.roundRect(this.ctx, -w * 0.18, h * 0.98, w * 0.36, h * 0.55, 6, true);
 
-      // Hand Holding the Flared Handle (Shakehand grip fingers)
-      this.ctx.fillStyle = '#e0a96d';
-      this.ctx.beginPath();
-      this.ctx.arc(0, h * 0.65, w * 0.22, 0, Math.PI * 2);
-      this.ctx.fill();
+      // Athletic Wrist Sweatband with Team Piping
+      const bandColor = customColor || '#00f2fe';
+      const bandGrad = this.ctx.createLinearGradient(-w * 0.23, 0, w * 0.23, 0);
+      bandGrad.addColorStop(0, '#0284c7');
+      bandGrad.addColorStop(0.5, bandColor);
+      bandGrad.addColorStop(1, '#0369a1');
+      this.ctx.fillStyle = bandGrad;
+      this.ctx.shadowColor = customAccent || 'rgba(0, 242, 254, 0.4)';
+      this.ctx.shadowBlur = 8;
+      this.roundRect(this.ctx, -w * 0.22, h * 0.84, w * 0.44, h * 0.24, 7, true);
+      this.ctx.shadowBlur = 0;
+
+      // Sweatband center white athletic stripe
+      this.ctx.fillStyle = '#ffffff';
+      this.ctx.fillRect(-w * 0.22, h * 0.94, w * 0.44, 3 * p.scale);
       this.ctx.restore();
     }
 
-    // 2. Wooden Handle (Contoured Flared FL Grip with Two-Tone Grain)
-    const handleW = w * 0.3;
-    const handleH = h * 0.6;
-    const handleY = h * 0.32;
-
-    // Handle Outer Mahogany Wings
-    const woodGrad = this.ctx.createLinearGradient(-handleW / 2, 0, handleW / 2, 0);
-    woodGrad.addColorStop(0, '#582f0e');
-    woodGrad.addColorStop(0.2, '#7f4f24');
-    woodGrad.addColorStop(0.5, '#936639');
-    woodGrad.addColorStop(0.8, '#7f4f24');
-    woodGrad.addColorStop(1, '#582f0e');
+    // 2. Flared Wooden Handle (Layered Rosewood & Birch Inlay)
+    this.ctx.save();
+    // Handle Outer Mahogany Scales with 3D Cylindrical Shading
+    const woodGrad = this.ctx.createLinearGradient(-w * 0.16, 0, w * 0.16, 0);
+    woodGrad.addColorStop(0, '#3f1f0a');
+    woodGrad.addColorStop(0.2, '#6a3810');
+    woodGrad.addColorStop(0.5, '#8c5024');
+    woodGrad.addColorStop(0.75, '#ab6835');
+    woodGrad.addColorStop(0.92, '#6a3810');
+    woodGrad.addColorStop(1, '#3f1f0a');
 
     this.ctx.fillStyle = woodGrad;
-    this.roundRect(this.ctx, -handleW / 2, handleY, handleW, handleH, 5, true);
+    this.drawFlaredHandlePath(this.ctx, w, handleTopY, handleBotY);
+    this.ctx.fill();
 
-    // Handle Center Birch Inlay Racing Stripe
-    this.ctx.fillStyle = '#ede0d4';
-    this.ctx.fillRect(-handleW * 0.15, handleY + 4, handleW * 0.3, handleH - 8);
+    // Wood Grain Fine Vertical Lines
+    this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.25)';
+    this.ctx.lineWidth = 1;
+    [-w * 0.08, -w * 0.04, w * 0.04, w * 0.08].forEach((gx) => {
+      this.ctx.beginPath();
+      this.ctx.moveTo(gx, handleTopY + 2);
+      this.ctx.lineTo(gx * 1.25, handleBotY - 4);
+      this.ctx.stroke();
+    });
 
-    // Handle Lens Medallion / Metallic Brand Badge
-    this.ctx.fillStyle = '#ffd700';
-    this.ctx.shadowColor = '#ffd700';
-    this.ctx.shadowBlur = 6;
+    // Handle Center Laminated Racing Stripe (Birch wood inlay)
+    const stripeGrad = this.ctx.createLinearGradient(-w * 0.045, 0, w * 0.045, 0);
+    stripeGrad.addColorStop(0, '#d6ccc2');
+    stripeGrad.addColorStop(0.5, '#f5ebe0');
+    stripeGrad.addColorStop(1, '#d6ccc2');
+    this.ctx.fillStyle = stripeGrad;
+    this.ctx.fillRect(-w * 0.045, handleTopY + 4, w * 0.09, handleBotY - handleTopY - 14);
+
+    // Dark Carbon Pinstripe in center of inlay
+    this.ctx.fillStyle = '#1e1b18';
+    this.ctx.fillRect(-w * 0.012, handleTopY + 4, w * 0.024, handleBotY - handleTopY - 14);
+
+    // Metallic Brand Badge / Lens Medallion at Handle Butt
+    this.ctx.save();
+    const badgeY = handleBotY - 10 * p.scale;
+    const badgeW = w * 0.12;
+    const badgeH = 8 * p.scale;
+    const badgeGrad = this.ctx.createLinearGradient(-badgeW, badgeY, badgeW, badgeY);
+    badgeGrad.addColorStop(0, '#d97706');
+    badgeGrad.addColorStop(0.5, '#fbbf24');
+    badgeGrad.addColorStop(1, '#b45309');
+    this.ctx.fillStyle = badgeGrad;
+    this.ctx.shadowColor = '#fbbf24';
+    this.ctx.shadowBlur = 5;
     this.ctx.beginPath();
-    this.ctx.ellipse(0, handleY + handleH * 0.72, handleW * 0.22, handleW * 0.16, 0, 0, Math.PI * 2);
+    this.ctx.ellipse(0, badgeY, badgeW, badgeH, 0, 0, Math.PI * 2);
     this.ctx.fill();
     this.ctx.shadowBlur = 0;
 
-    // 3. 3D Blade Edge Rim (5-ply Multi-layer Plywood Core)
-    const rimThickness = 4 * p.scale;
-    // Core dark carbon / walnut layer
-    this.ctx.fillStyle = '#331800';
+    // Lens reflection
+    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.65)';
     this.ctx.beginPath();
-    this.ctx.ellipse(0, 0, w / 2 + rimThickness, h / 2 + rimThickness, 0, 0, Math.PI * 2);
+    this.ctx.ellipse(-badgeW * 0.3, badgeY - 2, badgeW * 0.4, badgeH * 0.45, -0.3, 0, Math.PI * 2);
     this.ctx.fill();
+    this.ctx.restore();
 
-    // Outer birch wood veneer layer
+    this.ctx.restore();
+
+    // 3. Multi-Ply Blade Core & Sponge Layer (ITTF Sandwich Construction)
+    this.ctx.save();
+    // Layer A: 5-Ply Blade Wooden Core Base (Birch veneer)
+    this.ctx.save();
+    this.ctx.translate(0, 0);
+    this.ctx.scale(1 + rimThickness / (w * 0.5), 1 + rimThickness / (h * 0.5));
     this.ctx.fillStyle = '#c68b59';
-    this.ctx.beginPath();
-    this.ctx.ellipse(0, 0, w / 2 + rimThickness * 0.6, h / 2 + rimThickness * 0.6, 0, 0, Math.PI * 2);
+    this.drawBladeHeadPath(this.ctx, w, h);
     this.ctx.fill();
+    this.ctx.restore();
 
-    // 4. ITTF Protective Fabric Edge Tape
-    this.ctx.strokeStyle = '#000000';
-    this.ctx.lineWidth = rimThickness * 0.5;
-    this.ctx.beginPath();
-    this.ctx.ellipse(0, 0, w / 2 + rimThickness * 0.75, h / 2 + rimThickness * 0.75, 0, 0, Math.PI * 2);
+    // Layer B: Vibrant Orange High-Tension Sponge Layer (~2.1mm competition sponge)
+    this.ctx.save();
+    const spongeOffset = rimThickness * 0.7;
+    this.ctx.scale(1 + spongeOffset / (w * 0.5), 1 + spongeOffset / (h * 0.5));
+    this.ctx.fillStyle = '#ff6b35';
+    this.drawBladeHeadPath(this.ctx, w, h);
+    this.ctx.fill();
+    this.ctx.restore();
+
+    // Layer C: ITTF Protective Fabric Side Edge Tape (Black with metallic trim)
+    this.ctx.save();
+    this.ctx.strokeStyle = '#0f172a';
+    this.ctx.lineWidth = rimThickness * 0.65;
+    this.drawBladeHeadPath(this.ctx, w, h);
     this.ctx.stroke();
 
-    // 5. High-Tension Sponge & Inverted Rubber Face
-    // Professional ITTF Color Rule: Front face uses equipped color, Back uses black/contrast
+    this.ctx.strokeStyle = '#d4af37';
+    this.ctx.lineWidth = 1 * p.scale;
+    this.drawBladeHeadPath(this.ctx, w, h);
+    this.ctx.stroke();
+    this.ctx.restore();
+
+    // 4. Inverted Grippy Rubber Surface
+    // Regulation: Front face uses selected color, Back face uses contrasting ITTF black
     const rubberColor = customColor || (isForehand ? '#dc2626' : '#0f172a');
 
-    // Outer Aura Glow from equipped item
+    // Equipped Racket Aura Glow
     if (customAccent) {
       this.ctx.shadowColor = customAccent;
       this.ctx.shadowBlur = isPlayer ? 18 : 8;
     }
 
-    // High-Tension Grippy Rubber Radial Sheen
-    const rubberGrad = this.ctx.createRadialGradient(-w * 0.15, -h * 0.18, w * 0.1, 0, 0, w * 0.65);
+    // High-Tension Matte Rubber Surface Gradient with Natural Light Dropoff
+    const rubberGrad = this.ctx.createRadialGradient(-w * 0.16, -h * 0.20, w * 0.08, 0, 0, w * 0.68);
     rubberGrad.addColorStop(0, '#ffffff');
-    rubberGrad.addColorStop(0.2, rubberColor);
-    rubberGrad.addColorStop(0.85, rubberColor);
-    rubberGrad.addColorStop(1, '#1e0000');
+    rubberGrad.addColorStop(0.18, rubberColor);
+    rubberGrad.addColorStop(0.78, rubberColor);
+    rubberGrad.addColorStop(1, isForehand ? '#450a0a' : '#020617');
 
     this.ctx.fillStyle = rubberGrad;
-    this.ctx.beginPath();
-    this.ctx.ellipse(0, 0, w / 2, h / 2, 0, 0, Math.PI * 2);
+    this.drawBladeHeadPath(this.ctx, w, h);
     this.ctx.fill();
+    this.ctx.shadowBlur = 0;
 
-    // Specular Highlight Arc on Rubber Curve
+    // Rubber Chamfer Edge Ring
+    this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
+    this.ctx.lineWidth = 1.5 * p.scale;
+    this.drawBladeHeadPath(this.ctx, w, h);
+    this.ctx.stroke();
+
+    // Realistic Specular Curved Highlight Arc on Sweet Spot
     this.ctx.save();
-    this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
-    this.ctx.lineWidth = 3 * p.scale;
+    this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.42)';
+    this.ctx.lineWidth = 3.5 * p.scale;
     this.ctx.beginPath();
-    this.ctx.ellipse(-w * 0.1, -h * 0.12, w * 0.32, h * 0.32, 0, -Math.PI * 0.7, -Math.PI * 0.2);
+    this.ctx.ellipse(-w * 0.12, -h * 0.14, w * 0.30, h * 0.32, 0, -Math.PI * 0.75, -Math.PI * 0.18);
+    this.ctx.stroke();
+
+    // Secondary subtle lower soft shine
+    this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
+    this.ctx.lineWidth = 2 * p.scale;
+    this.ctx.beginPath();
+    this.ctx.ellipse(-w * 0.06, -h * 0.08, w * 0.38, h * 0.40, 0, -Math.PI * 0.8, -Math.PI * 0.25);
     this.ctx.stroke();
     this.ctx.restore();
 
-    // Embossed ITTF Approval Seal at base of rubber
+    // Embossed Official ITTF Approval Seal at base of rubber
     this.ctx.save();
-    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
     this.ctx.font = `700 ${Math.max(6, Math.floor(7 * p.scale))}px "Rajdhani", sans-serif`;
     this.ctx.textAlign = 'center';
-    this.ctx.fillText('ITTF 29-008', 0, h * 0.28);
+    this.ctx.fillText('🏓 ITTF 29-008 • PRO SERIES', 0, h * 0.40);
     this.ctx.restore();
+
+    this.ctx.restore();
+
+    // 5. Anatomical Athlete Hand & Fingers (Shakehand Grip for Player)
+    if (isPlayer) {
+      this.ctx.save();
+      const skinBase = '#d4a373';
+      const skinShadow = '#b07d4b';
+      const skinHighlight = '#f3c99f';
+
+      // Three fingers wrapped tightly around the flared handle scales
+      const fingerYOffsets = [h * 0.58, h * 0.70, h * 0.82];
+      const fingerWidths = [w * 0.32, w * 0.30, w * 0.28];
+
+      fingerYOffsets.forEach((fy, idx) => {
+        const fw = fingerWidths[idx];
+        const fGrad = this.ctx.createLinearGradient(-fw / 2, fy, fw / 2, fy);
+        fGrad.addColorStop(0, skinShadow);
+        fGrad.addColorStop(0.3, skinHighlight);
+        fGrad.addColorStop(0.7, skinBase);
+        fGrad.addColorStop(1, skinShadow);
+
+        this.ctx.fillStyle = fGrad;
+        this.ctx.shadowColor = 'rgba(0,0,0,0.3)';
+        this.ctx.shadowBlur = 3;
+        this.roundRect(this.ctx, -fw * 0.52, fy, fw, 9 * p.scale, 4, true);
+
+        // Knuckle crease accent line
+        this.ctx.shadowBlur = 0;
+        this.ctx.strokeStyle = 'rgba(80, 40, 15, 0.35)';
+        this.ctx.lineWidth = 1;
+        this.ctx.beginPath();
+        this.ctx.moveTo(-fw * 0.15, fy + 2);
+        this.ctx.lineTo(-fw * 0.15, fy + 7 * p.scale);
+        this.ctx.stroke();
+      });
+
+      // Athlete Thumb resting securely on the blade shoulder (Signature Shakehand Grip)
+      this.ctx.save();
+      const thumbX = isForehand ? -w * 0.14 : w * 0.14;
+      const thumbY = h * 0.48;
+      const thumbRot = isForehand ? 0.35 : -0.35;
+
+      const thumbGrad = this.ctx.createRadialGradient(thumbX, thumbY, 2, thumbX, thumbY, 14 * p.scale);
+      thumbGrad.addColorStop(0, skinHighlight);
+      thumbGrad.addColorStop(0.6, skinBase);
+      thumbGrad.addColorStop(1, skinShadow);
+
+      this.ctx.fillStyle = thumbGrad;
+      this.ctx.beginPath();
+      this.ctx.ellipse(thumbX, thumbY, 11 * p.scale, 7 * p.scale, thumbRot, 0, Math.PI * 2);
+      this.ctx.fill();
+
+      // Thumbnail sheen
+      this.ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+      this.ctx.beginPath();
+      this.ctx.ellipse(thumbX + (isForehand ? 3 : -3), thumbY - 1, 4 * p.scale, 3 * p.scale, thumbRot, 0, Math.PI * 2);
+      this.ctx.fill();
+      this.ctx.restore();
+
+      this.ctx.restore();
+    }
 
     this.ctx.restore();
   }
